@@ -53,6 +53,9 @@ class VerifyExprVisitor : public ExprVisitor {
     void
     visit(JsonContainsExpr& expr) override;
 
+    void
+    visit(GISFunctionFilterExpr& expr) override;
+
  public:
 };
 }  // namespace milvus::query

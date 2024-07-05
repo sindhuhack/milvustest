@@ -59,6 +59,9 @@ class ExecExprVisitor : public ExprVisitor {
     void
     visit(JsonContainsExpr& expr) override;
 
+    void
+    visit(GISFunctionFilterExpr& expr) override;
+
  public:
     ExecExprVisitor(const segcore::SegmentInternalInterface& segment,
                     int64_t row_count,
@@ -216,6 +219,9 @@ class ExecExprVisitor : public ExprVisitor {
 
     auto
     ExecJsonContainsAllWithDiffType(JsonContainsExpr& expr_raw) -> BitsetType;
+
+    auto
+    ExecGeospatialRelationships(GISFunctionFilterExpr& expr_raw) -> BitsetType;
 
     template <typename CmpFunc>
     BitsetType

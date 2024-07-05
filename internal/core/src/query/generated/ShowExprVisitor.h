@@ -49,6 +49,9 @@ class ShowExprVisitor : public ExprVisitor {
     void
     visit(JsonContainsExpr& expr) override;
 
+    void
+    visit(GISFunctionFilterExpr& expr) override;
+
  public:
     Json
 

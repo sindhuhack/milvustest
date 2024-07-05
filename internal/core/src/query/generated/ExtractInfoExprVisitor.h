@@ -48,6 +48,9 @@ class ExtractInfoExprVisitor : public ExprVisitor {
     void
     visit(JsonContainsExpr& expr) override;
 
+    void
+    visit(GISFunctionFilterExpr& expr) override;
+
  public:
     explicit ExtractInfoExprVisitor(ExtractedPlanInfo& plan_info)
         : plan_info_(plan_info) {

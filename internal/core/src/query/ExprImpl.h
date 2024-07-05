@@ -112,4 +112,14 @@ struct JsonContainsExprImpl : JsonContainsExpr {
     }
 };
 
+struct GISFunctionFilterExprImpl : GISFunctionFilterExpr {
+    const std::string wkb_;
+
+    GISFunctionFilterExprImpl(ColumnInfo column,
+                              GISFunctionType op,
+                              const std::string wkb)
+        : GISFunctionFilterExpr(std::forward<ColumnInfo>(column), op),
+          wkb_(wkb) {
+    }
+};
 }  // namespace milvus::query

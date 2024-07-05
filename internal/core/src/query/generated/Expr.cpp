@@ -63,4 +63,9 @@ void
 JsonContainsExpr::accept(ExprVisitor& visitor) {
     visitor.visit(*this);
 }
+
+void
+GISFunctionFilterExpr::accept(ExprVisitor& visitor) {
+    visitor.visit(*this);
+}
 }  // namespace milvus::query

@@ -679,6 +679,7 @@ func (t *searchTask) PostExecute(ctx context.Context) error {
 		}
 	}
 
+	validateGeospatialFieldSearchResult(&t.result.Results.FieldsData)
 	t.result.CollectionName = t.collectionName
 	t.fillInFieldInfo()
 

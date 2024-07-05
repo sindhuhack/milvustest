@@ -48,5 +48,8 @@ class ExprVisitor {
 
     virtual void
     visit(JsonContainsExpr&) = 0;
+
+    virtual void
+    visit(GISFunctionFilterExpr&) = 0;
 };
 }  // namespace milvus::query

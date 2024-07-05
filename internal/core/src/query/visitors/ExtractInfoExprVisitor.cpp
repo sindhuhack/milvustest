@@ -9,6 +9,7 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 // or implied. See the License for the specific language governing permissions and limitations under the License
 
+#include "query/Expr.h"
 #include "query/Plan.h"
 #include "query/generated/ExtractInfoExprVisitor.h"
 
@@ -80,4 +81,8 @@ ExtractInfoExprVisitor::visit(JsonContainsExpr& expr) {
     plan_info_.add_involved_field(expr.column_.field_id);
 }
 
+void
+ExtractInfoExprVisitor::visit(GISFunctionFilterExpr& expr) {
+    plan_info_.add_involved_field(expr.column_.field_id);
+}
 }  // namespace milvus::query

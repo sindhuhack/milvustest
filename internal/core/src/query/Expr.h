@@ -303,6 +303,21 @@ struct JsonContainsExpr : Expr {
     accept(ExprVisitor&) override;
 };
 
+struct GISFunctionFilterExpr : Expr {
+    const ColumnInfo column_;
+    GISFunctionType op_;
+
+ protected:
+    GISFunctionFilterExpr() = delete;
+    GISFunctionFilterExpr(ColumnInfo column, GISFunctionType op)
+        : column_(std::move(column)), op_(op) {
+    }
+
+ public:
+    void
+    accept(ExprVisitor&) override;
+};
+
 inline bool
 IsTermExpr(Expr* expr) {
     TermExpr* term_expr = dynamic_cast<TermExpr*>(expr);
