@@ -71,7 +71,9 @@ func TestSearchTask_PostExecute(t *testing.T) {
 		task := &searchTask{
 			ctx:            ctx,
 			collectionName: collName,
-			SearchRequest:  &internalpb.SearchRequest{},
+			SearchRequest: &internalpb.SearchRequest{
+				IsTopkReduce: true,
+			},
 			request: &milvuspb.SearchRequest{
 				CollectionName: collName,
 				Nq:             1,
@@ -97,6 +99,7 @@ func TestSearchTask_PostExecute(t *testing.T) {
 		err := qt.PostExecute(context.TODO())
 		assert.NoError(t, err)
 		assert.Equal(t, qt.result.GetStatus().GetErrorCode(), commonpb.ErrorCode_Success)
+		assert.Equal(t, qt.resultSizeNotMeetLimit, false)
 	})
 }
 
