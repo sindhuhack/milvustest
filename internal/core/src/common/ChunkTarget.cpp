@@ -10,9 +10,11 @@
 // or implied. See the License for the specific language governing permissions and limitations under the License
 
 #include <common/ChunkTarget.h>
+#include <algorithm>
 #include <cstring>
 #include "common/EasyAssert.h"
 #include <sys/mman.h>
+#include <unistd.h>
 
 namespace milvus {
 void
@@ -62,8 +64,21 @@ MmapChunkTarget::seek(size_t offset) {
 
 std::pair<char*, size_t>
 MmapChunkTarget::get() {
+    // Write padding to align with the page size, ensuring the offset_ aligns with the page size.
+    auto page_size = sysconf(_SC_PAGE_SIZE);
+    auto padding_size =
+        (size_ / page_size + (size_ % page_size != 0)) * page_size - size_;
+    char padding[padding_size];
+    memset(padding, 0, sizeof(padding));
+    write(padding, padding_size);
+
     auto m = mmap(
         nullptr, size_, PROT_READ, MAP_SHARED, file_.Descriptor(), offset_);
+    AssertInfo(m != MAP_FAILED,
+               "failed to map: {}, map_size={}, offset={}",
+               strerror(errno),
+               size_,
+               offset_);
     return {(char*)m, size_};
 }
 
