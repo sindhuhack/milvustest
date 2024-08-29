@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/util/merr"
 )
 
@@ -305,6 +306,8 @@ type FieldSchema struct {
 	IsPrimary         bool                   `json:"isPrimary"`
 	IsPartitionKey    bool                   `json:"isPartitionKey"`
 	ElementTypeParams map[string]interface{} `json:"elementTypeParams" binding:"required"`
+	Nullable          bool                   `json:"nullable" binding:"required"`
+	DefaultValue      *schemapb.ValueField   `json:"defaultValue" binding:"required"`
 }
 
 type CollectionSchema struct {
