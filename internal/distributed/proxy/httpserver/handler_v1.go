@@ -718,6 +718,7 @@ func (h *HandlersV1) insert(c *gin.Context) {
 			return nil, RestRequestInterceptorErr
 		}
 		body, _ := c.Get(gin.BodyBytesKey)
+		// fmt.Println("The insert body:", string(body.([]byte)))
 		err, httpReq.Data = checkAndSetData(string(body.([]byte)), collSchema)
 		if err != nil {
 			log.Warn("high level restful api, fail to deal with insert data", zap.Any("body", body), zap.Error(err))

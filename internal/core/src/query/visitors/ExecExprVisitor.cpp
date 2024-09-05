@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "arrow/type_fwd.h"
+#include "common/GeoSpatial.h"
 #include "common/Json.h"
 #include "common/Types.h"
 #include "common/EasyAssert.h"
@@ -3516,6 +3517,121 @@ ExecExprVisitor::visit(JsonContainsExpr& expr) {
             PanicInfo(DataTypeInvalid,
                       "unsupported json contains type {}",
                       expr.val_case_);
+    }
+    AssertInfo(res.size() == row_count_,
+               "[ExecExprVisitor]Size of results not equal row count");
+    bitset_opt_ = std::move(res);
+}
+
+auto
+ExecExprVisitor::ExecGeospatialRelationships(GISFunctionFilterExpr& expr_raw)
+    -> BitsetType {
+    using Index = index::ScalarIndex<std::string>;
+    auto index_func = [](Index* index) { return TargetBitmap{}; };
+    auto& expr = static_cast<GISFunctionFilterExprImpl&>(expr_raw);
+    GeoSpatial geometry(expr.wkb_.data(), expr.wkb_.size());
+    auto default_skip_index_func = [&](const SkipIndex& skipIndex,
+                                       FieldId fieldId,
+                                       int64_t chunkId) { return false; };
+    switch (expr.op_) {
+        case proto::plan::GISFunctionFilterExpr_GISOp_Equals: {
+            auto element_func = [&geometry](const std::string& wkb) {
+                GeoSpatial column_geo(wkb.data(), wkb.size());
+                return geometry.equals(column_geo);
+            };
+            return ExecRangeVisitorImpl<std::string>(expr.column_.field_id,
+                                                     index_func,
+                                                     element_func,
+                                                     default_skip_index_func);
+        }
+        case proto::plan::GISFunctionFilterExpr_GISOp_Touches: {
+            auto element_func = [&geometry](const std::string& wkb) {
+                GeoSpatial column_geo(wkb.data(), wkb.size());
+                return geometry.touches(column_geo);
+            };
+            return ExecRangeVisitorImpl<std::string>(expr.column_.field_id,
+                                                     index_func,
+                                                     element_func,
+                                                     default_skip_index_func);
+        }
+        case proto::plan::GISFunctionFilterExpr_GISOp_Overlaps: {
+            auto element_func = [&geometry](const std::string& wkb) {
+                GeoSpatial column_geo(wkb.data(), wkb.size());
+                return geometry.overlaps(column_geo);
+            };
+            return ExecRangeVisitorImpl<std::string>(expr.column_.field_id,
+                                                     index_func,
+                                                     element_func,
+                                                     default_skip_index_func);
+        }
+        case proto::plan::GISFunctionFilterExpr_GISOp_Crosses: {
+            auto element_func = [&geometry](const std::string& wkb) {
+                GeoSpatial column_geo(wkb.data(), wkb.size());
+                return geometry.crosses(column_geo);
+            };
+            return ExecRangeVisitorImpl<std::string>(expr.column_.field_id,
+                                                     index_func,
+                                                     element_func,
+                                                     default_skip_index_func);
+        }
+        case proto::plan::GISFunctionFilterExpr_GISOp_Contains: {
+            auto element_func = [&geometry](const std::string& wkb) {
+                GeoSpatial column_geo(wkb.data(), wkb.size());
+                return geometry.contains(column_geo);
+            };
+            return ExecRangeVisitorImpl<std::string>(expr.column_.field_id,
+                                                     index_func,
+                                                     element_func,
+                                                     default_skip_index_func);
+        }
+        case proto::plan::GISFunctionFilterExpr_GISOp_Intersects: {
+            auto element_func = [&geometry](const std::string& wkb) {
+                GeoSpatial column_geo(wkb.data(), wkb.size());
+                return geometry.intersects(column_geo);
+            };
+            return ExecRangeVisitorImpl<std::string>(expr.column_.field_id,
+                                                     index_func,
+                                                     element_func,
+                                                     default_skip_index_func);
+        }
+        case proto::plan::GISFunctionFilterExpr_GISOp_Within: {
+            auto element_func = [&geometry](const std::string& wkb) {
+                GeoSpatial column_geo(wkb.data(), wkb.size());
+                return geometry.within(column_geo);
+            };
+            return ExecRangeVisitorImpl<std::string>(expr.column_.field_id,
+                                                     index_func,
+                                                     element_func,
+                                                     default_skip_index_func);
+        }
+        default: {
+            PanicInfo(
+                OpTypeInvalid, "unsupported GIS Function type {}", expr.op_);
+        }
+    }
+}
+
+void
+ExecExprVisitor::visit(GISFunctionFilterExpr& expr) {
+    auto& field_meta = segment_.get_schema()[expr.column_.field_id];
+    AssertInfo(expr.column_.data_type == DataType::GEOSPATIAL,
+               "[ExecExprVisitor]DataType of GISFunctionFilterExpr isn't "
+               "geospatial data type");
+    BitsetType res;
+    switch (expr.op_) {
+        case proto::plan::GISFunctionFilterExpr_GISOp_Equals:
+        case proto::plan::GISFunctionFilterExpr_GISOp_Touches:
+        case proto::plan::GISFunctionFilterExpr_GISOp_Overlaps:
+        case proto::plan::GISFunctionFilterExpr_GISOp_Crosses:
+        case proto::plan::GISFunctionFilterExpr_GISOp_Contains:
+        case proto::plan::GISFunctionFilterExpr_GISOp_Intersects:
+        case proto::plan::GISFunctionFilterExpr_GISOp_Within: {
+            res = ExecGeospatialRelationships(expr);
+            break;
+        }
+        default:
+            PanicInfo(
+                OpTypeInvalid, "unsupported GIS Function type {}", expr.op_);
     }
     AssertInfo(res.size() == row_count_,
                "[ExecExprVisitor]Size of results not equal row count");

@@ -11,6 +11,7 @@
 
 #include <utility>
 
+#include "common/Json.h"
 #include "common/Types.h"
 #include "query/ExprImpl.h"
 #include "query/Plan.h"
@@ -367,6 +368,17 @@ ShowExprVisitor::visit(JsonContainsExpr& expr) {
              {"same_type", expr.same_type_},
              {"op", expr.op_},
              {"val_case", expr.val_case_}};
+    json_opt_ = res;
+}
+void
+ShowExprVisitor::visit(GISFunctionFilterExpr& expr) {
+    AssertInfo(!json_opt_.has_value(),
+               "[ShowExprVisitor]Ret json already has value before visit");
+    Json res{{"expr_type", "GISFunctionFilter"},
+             {"field_id", expr.column_.field_id.get()},
+             {"data_type", expr.column_.data_type},
+             {"nested_path", expr.column_.nested_path},
+             {"op", expr.op_}};
     json_opt_ = res;
 }
 

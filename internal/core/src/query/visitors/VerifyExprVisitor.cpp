@@ -62,4 +62,8 @@ VerifyExprVisitor::visit(JsonContainsExpr& expr) {
     // TODO
 }
 
+void
+VerifyExprVisitor::visit(GISFunctionFilterExpr& expr) {
+    // TODO
+}
 }  // namespace milvus::query

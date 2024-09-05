@@ -59,6 +59,10 @@ class ProtoParser {
     ParseJsonContainsExpr(const proto::plan::JSONContainsExpr& expr_pb);
 
     ExprPtr
+    ParseGISFunctionFilterExpr(
+        const proto::plan::GISFunctionFilterExpr& expr_pb);
+
+    ExprPtr
     ParseExpr(const proto::plan::Expr& expr_pb);
 
     std::unique_ptr<VectorPlanNode>
@@ -103,6 +107,10 @@ class ProtoParser {
 
     expr::TypedExprPtr
     ParseJsonContainsExprs(const proto::plan::JSONContainsExpr& expr_pb);
+
+    expr::TypedExprPtr
+    ParseGISFunctionFilterExprs(
+        const proto::plan::GISFunctionFilterExpr& expr_pb);
 
     expr::TypedExprPtr
     CreateAlwaysTrueExprs();
