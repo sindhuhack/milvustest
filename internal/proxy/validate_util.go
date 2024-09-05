@@ -65,8 +65,12 @@ func validateGeospatialFieldSearchResult(array *[]*schemapb.FieldData) error {
 					log.Warn("translate the wkb format search result into geometry failed")
 					return err
 				}
-				// MaxDecimalDigits set as 6
+				// MaxDecimalDigits set as 6 temporarily
 				wktStr, err := wkt.Marshal(geomT, wkt.EncodeOptionWithMaxDecimalDigits(6))
+				if err != nil {
+					log.Warn("translate the geomery  into its wkt failed")
+					return err
+				}
 				wktArray[i] = []byte(wktStr)
 			}
 			// modify the field data

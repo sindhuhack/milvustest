@@ -461,6 +461,10 @@ func checkAndSetData(body string, collSchema *schemapb.CollectionSchema) (error,
 				case schemapb.DataType_GeoSpatial:
 					// treat as string(wkt) data,the string data must be valid
 					WktString, err := base64.StdEncoding.DecodeString(dataString)
+					if err != nil {
+						log.Warn("proxy can not decode datastring with base64", zap.String("WktString:", dataString))
+						return merr.WrapErrParameterInvalid(schemapb.DataType_name[int32(fieldType)], dataString, err.Error()), reallyDataArray
+					}
 					fmt.Println("before unmarshal wkt:", string(WktString))
 					geomT, err := wkt.Unmarshal(string(WktString))
 					if err != nil {

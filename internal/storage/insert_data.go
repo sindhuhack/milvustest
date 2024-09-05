@@ -872,6 +872,14 @@ func (data *JSONFieldData) AppendRows(dataRows interface{}, validDataRows interf
 	return data.AppendValidDataRows(validDataRows)
 }
 
+func (data *GeospatialFieldData) AppendRows(dataRows interface{}, validDataRows interface{}) error {
+	err := data.AppendDataRows(dataRows)
+	if err != nil {
+		return err
+	}
+	return data.AppendValidDataRows(validDataRows)
+}
+
 // AppendDataRows appends FLATTEN vectors to field data.
 func (data *BinaryVectorFieldData) AppendRows(dataRows interface{}, validDataRows interface{}) error {
 	err := data.AppendDataRows(dataRows)
@@ -1188,6 +1196,18 @@ func (data *ArrayFieldData) AppendValidDataRows(rows interface{}) error {
 }
 
 func (data *JSONFieldData) AppendValidDataRows(rows interface{}) error {
+	if rows == nil {
+		return nil
+	}
+	v, ok := rows.([]bool)
+	if !ok {
+		return merr.WrapErrParameterInvalid("[]bool", rows, "Wrong rows type")
+	}
+	data.ValidData = append(data.ValidData, v...)
+	return nil
+}
+
+func (data *GeospatialFieldData) AppendValidDataRows(rows interface{}) error {
 	if rows == nil {
 		return nil
 	}
