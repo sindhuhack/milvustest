@@ -1529,9 +1529,6 @@ TEST(Sealed, GetVectorFromChunkCache) {
 }
 
 TEST(Sealed, GetSparseVectorFromChunkCache) {
-    // skip test due to mem leak from AWS::InitSDK
-    return;
-
     auto dim = 16;
     auto topK = 5;
     auto N = ROW_COUNT;
@@ -1562,18 +1559,29 @@ TEST(Sealed, GetSparseVectorFromChunkCache) {
     auto dataset = DataGen(schema, N);
     auto field_data_meta =
         milvus::storage::FieldDataMeta{1, 2, 3, fakevec_id.get()};
-    auto field_meta = milvus::FieldMeta(milvus::FieldName("facevec"),
+    auto field_meta = milvus::FieldMeta(milvus::FieldName("fakevec"),
                                         fakevec_id,
                                         milvus::DataType::VECTOR_SPARSE_FLOAT,
                                         dim,
-                                        metric_type);
+                                        metric_type,
+                                        false);
 
     auto rcm = milvus::storage::RemoteChunkManagerSingleton::GetInstance()
                    .GetRemoteChunkManager();
     auto data = dataset.get_col<knowhere::sparse::SparseRow<float>>(fakevec_id);
-    auto data_slices = std::vector<void*>{data.data()};
-    auto slice_sizes = std::vector<int64_t>{static_cast<int64_t>(N)};
-    auto slice_names = std::vector<std::string>{file_name};
+
+    // write to multiple files for better coverage
+    auto data_slices = std::vector<void*>();
+    auto slice_sizes = std::vector<int64_t>();
+    auto slice_names = std::vector<std::string>();
+
+    const int64_t slice_size = (N + 9) / 10;
+    for (int64_t i = 0; i < N; i += slice_size) {
+        int64_t current_slice_size = std::min(slice_size, N - i);
+        data_slices.push_back(data.data() + i);
+        slice_sizes.push_back(current_slice_size);
+        slice_names.push_back(file_name + "_" + std::to_string(i / slice_size));
+    }
     PutFieldData(rcm.get(),
                  data_slices,
                  slice_sizes,
@@ -1598,11 +1606,7 @@ TEST(Sealed, GetSparseVectorFromChunkCache) {
     segment_sealed->LoadIndex(vec_info);
 
     auto field_binlog_info =
-        FieldBinlogInfo{fakevec_id.get(),
-                        N,
-                        std::vector<int64_t>{N},
-                        false,
-                        std::vector<std::string>{file_name}};
+        FieldBinlogInfo{fakevec_id.get(), N, slice_sizes, false, slice_names};
     segment_sealed->AddFieldDataInfoForSealed(
         LoadFieldDataInfo{std::map<int64_t, FieldBinlogInfo>{
             {fakevec_id.get(), field_binlog_info}}});
@@ -1629,9 +1633,11 @@ TEST(Sealed, GetSparseVectorFromChunkCache) {
             "sparse float vector doesn't match");
     }
 
-    rcm->Remove(file_name);
-    auto exist = rcm->Exist(file_name);
-    Assert(!exist);
+    for (const auto& name : slice_names) {
+        rcm->Remove(name);
+        auto exist = rcm->Exist(name);
+        Assert(!exist);
+    }
 }
 
 TEST(Sealed, WarmupChunkCache) {
