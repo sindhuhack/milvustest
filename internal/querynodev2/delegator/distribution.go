@@ -78,7 +78,6 @@ type distribution struct {
 	mut sync.RWMutex
 }
 
-// SegmentEntry stores the segment meta information.
 type SegmentEntry struct {
 	NodeID        int64
 	SegmentID     UniqueID
@@ -86,6 +85,8 @@ type SegmentEntry struct {
 	Version       int64
 	TargetVersion int64
 	Level         datapb.SegmentLevel
+	//only used for scan query
+	Offset int64
 }
 
 // NewDistribution creates a new distribution instance with all field initialized.
@@ -163,6 +164,21 @@ func (d *distribution) PeekSegments(readable bool, partitions ...int64) (sealed 
 	}
 
 	return
+}
+
+func (d *distribution) PeekSegmentsBySnapshot(snapVersion int64, readable bool, partitions ...int64) ([]SnapshotItem, []SegmentEntry, error) {
+	snapshot, ok := d.snapshots.Get(snapVersion)
+	if !ok {
+		//hc--need refine error handling here
+		return nil, nil, merr.ErrParameterInvalid
+	}
+	sealed, growing := snapshot.Peek(partitions...)
+	if readable {
+		targetVersion := snapshot.GetTargetVersion()
+		filterReadable := d.readableFilter(targetVersion)
+		sealed, growing = d.filterSegments(sealed, growing, filterReadable)
+	}
+	return sealed, growing, nil
 }
 
 // Unpin notifies snapshot one reference is released.

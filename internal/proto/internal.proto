@@ -168,6 +168,14 @@ message CostAggregation {
   int64 totalRelatedDataSize = 4;
 }
 
+message ScanCtx {
+  int64 scan_ctx_id = 1;
+  int64 segment_idx = 2;
+  int64 offset = 3;
+  uint64 mvcc_ts = 4;
+  bool is_init_scan = 5;
+}
+
 message RetrieveRequest {
   common.MsgBase base = 1;
   int64 reqID = 2;
@@ -185,9 +193,8 @@ message RetrieveRequest {
   int64 iteration_extension_reduce_rate = 14;
   string username = 15;
   bool reduce_stop_for_best = 16;
+  ScanCtx scan_ctx = 17;
 }
-
-
 
 message RetrieveResults {
   common.MsgBase base = 1;
@@ -203,6 +210,7 @@ message RetrieveResults {
   CostAggregation costAggregation = 13;
   int64 all_retrieve_count = 14;
   bool has_more_result = 15;
+  ScanCtx scan_ctx = 16;
 }
 
 message LoadIndex {

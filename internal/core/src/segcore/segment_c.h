@@ -70,6 +70,15 @@ AsyncRetrieveByOffsets(CTraceContext c_trace,
                        int64_t* offsets,
                        int64_t len);
 
+CFuture*  // Future<CRetrieveResult>
+AsyncRetrieveAfterOffset(CTraceContext c_trace,
+                         CSegmentInterface c_segment,
+                         CRetrievePlan c_plan,
+                         int64_t offset_bound,
+                         uint64_t timestamp,
+                         int64_t limit_size,
+                         bool ignore_non_pk);
+
 int64_t
 GetMemoryUsageInBytes(CSegmentInterface c_segment);
 

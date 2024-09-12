@@ -135,6 +135,14 @@ type shardDelegator struct {
 	// in order to make add/remove growing be atomic, need lock before modify these meta info
 	growingSegmentLock sync.RWMutex
 	partitionStatsMut  sync.RWMutex
+
+	//Managing snapshot context used by external clients
+	readCtxMap  map[int64]*ReadContext
+	readCtxLock sync.RWMutex
+}
+
+type ReadContext struct {
+	snapshotID int64
 }
 
 // getLogger returns the zap logger with pre-defined shard attributes.
@@ -451,6 +459,34 @@ func (sd *shardDelegator) QueryStream(ctx context.Context, req *querypb.QueryReq
 	return nil
 }
 
+func (sd *shardDelegator) modifyRequestForScan(sealed *[]SnapshotItem, growing *[]SegmentEntry, segmentIdx int64, segOffset int64) ([]SnapshotItem, []SegmentEntry, error) {
+	idx := 0
+	targetSealed := make([]SnapshotItem, 0)
+	targetGrowing := make([]SegmentEntry, 0)
+	for _, sealedItem := range *sealed {
+		nextIdx := idx + len(sealedItem.Segments)
+		if int64(nextIdx) >= segmentIdx {
+			targetIdx := int(segmentIdx - int64(idx)) // hc--need handle int vs int64 here
+			targetSegment := sealedItem.Segments[targetIdx]
+			targetSegment.Offset = segOffset
+			targetSealed = append(targetSealed, SnapshotItem{
+				NodeID:   sealedItem.NodeID,
+				Segments: []SegmentEntry{targetSegment},
+			})
+			return targetSealed, targetGrowing, nil
+		}
+		idx = nextIdx
+	}
+	targetIdx := int(segmentIdx - int64(idx))
+	if targetIdx >= len(*growing) {
+		return nil, nil, merr.ErrParameterInvalid
+	}
+	targetSegment := (*growing)[targetIdx]
+	targetSegment.Offset = segOffset
+	targetGrowing = append(targetGrowing, targetSegment)
+	return targetSealed, targetGrowing, nil
+}
+
 // Query performs query operation on shard.
 func (sd *shardDelegator) Query(ctx context.Context, req *querypb.QueryRequest) ([]*internalpb.RetrieveResults, error) {
 	log := sd.getLogger(ctx)
@@ -485,12 +521,19 @@ func (sd *shardDelegator) Query(ctx context.Context, req *querypb.QueryRequest) 
 		fmt.Sprint(paramtable.GetNodeID()), metrics.QueryLabel).
 		Observe(float64(waitTr.ElapseSpan().Milliseconds()))
 
-	sealed, growing, version, err := sd.distribution.PinReadableSegments(req.GetReq().GetPartitionIDs()...)
-	if err != nil {
-		log.Warn("delegator failed to query, current distribution is not serviceable")
-		return nil, merr.WrapErrChannelNotAvailable(sd.vchannelName, "distribution is not servcieable")
+	var sealed []SnapshotItem
+	var growing []SegmentEntry
+	var version int64
+	//handle scan request
+	if isScan, err := sd.handleScanQuery(req, &sealed, &growing); !isScan {
+		sealed, growing, version, err = sd.distribution.PinReadableSegments(req.GetReq().GetPartitionIDs()...)
+		if err != nil {
+			log.Warn("delegator failed to query, current distribution is not serviceable")
+			return nil, merr.WrapErrChannelNotAvailable(sd.vchannelName, "distribution is not serviceable")
+		}
+		defer sd.distribution.Unpin(version)
 	}
-	defer sd.distribution.Unpin(version)
+
 	if req.Req.IgnoreGrowing {
 		growing = []SegmentEntry{}
 	} else {
@@ -513,7 +556,14 @@ func (sd *shardDelegator) Query(ctx context.Context, req *querypb.QueryRequest) 
 		zap.Int("sealedNum", sealedNum),
 		zap.Int("growingNum", len(growing)),
 	)
-	tasks, err := organizeSubTask(ctx, req, sealed, growing, sd, sd.modifyQueryRequest)
+
+	var tasks []subTask[*querypb.QueryRequest]
+
+	if req.GetReq().GetScanCtx() != nil {
+		tasks, err = organizeScanQuerySubTask(ctx, req, sealed, growing, sd)
+	} else {
+		tasks, err = organizeSubTask(ctx, req, sealed, growing, sd, sd.modifyQueryRequest)
+	}
 	if err != nil {
 		log.Warn("query organizeSubTask failed", zap.Error(err))
 		return nil, err
@@ -593,6 +643,63 @@ type subTask[T any] struct {
 	req      T
 	targetID int64
 	worker   cluster.Worker
+}
+
+func organizeScanQuerySubTask[T any](ctx context.Context, req T, sealed []SnapshotItem, growing []SegmentEntry, sd *shardDelegator) ([]subTask[T], error) {
+	result := make([]subTask[T], 0, len(sealed)+1)
+
+	packSubTask := func(segments []SegmentEntry, workerID int64, scope querypb.DataScope) error {
+		segmentIDs := lo.Map(segments, func(item SegmentEntry, _ int) int64 {
+			return item.SegmentID
+		})
+		offsets := lo.Map(segments, func(item SegmentEntry, _ int) int64 {
+			return item.Offset
+		})
+		if len(segmentIDs) == 0 {
+			return nil
+		}
+		if len(segments) != len(offsets) {
+			return fmt.Errorf("failed to organize scan query tasks, len of segments is not equal to len of offsets %d, %d", len(segments), len(offsets))
+		}
+
+		// update request
+		queryRequest, ok := any(req).(*querypb.QueryRequest)
+		if !ok {
+			return fmt.Errorf("req is not of type *querypb.QueryRequest")
+		}
+		nodeReq := proto.Clone(queryRequest).(*querypb.QueryRequest)
+		nodeReq.Scope = scope
+		nodeReq.Req.Base.TargetID = workerID
+		nodeReq.SegmentIDs = segmentIDs
+		nodeReq.Offsets = offsets
+		nodeReq.DmlChannels = []string{sd.vchannelName}
+
+		worker, err := sd.workerManager.GetWorker(ctx, workerID)
+		if err != nil {
+			log.Warn("failed to get worker",
+				zap.Int64("nodeID", workerID),
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to get worker %d, %w", workerID, err)
+		}
+
+		result = append(result, subTask[T]{
+			req:      any(nodeReq).(T),
+			targetID: workerID,
+			worker:   worker,
+		})
+		return nil
+	}
+	for _, entry := range sealed {
+		err := packSubTask(entry.Segments, entry.NodeID, querypb.DataScope_Historical)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	packSubTask(growing, paramtable.GetNodeID(), querypb.DataScope_Streaming)
+
+	return result, nil
 }
 
 func organizeSubTask[T any](ctx context.Context, req T, sealed []SnapshotItem, growing []SegmentEntry, sd *shardDelegator, modify func(T, querypb.DataScope, []int64, int64) T) ([]subTask[T], error) {
@@ -882,6 +989,7 @@ func NewShardDelegator(ctx context.Context, collectionID UniqueID, replicaID Uni
 		chunkManager:     chunkManager,
 		partitionStats:   make(map[UniqueID]*storage.PartitionStatsSnapshot),
 		excludedSegments: excludedSegments,
+		readCtxMap:       make(map[int64]*ReadContext, 0),
 	}
 	m := sync.Mutex{}
 	sd.tsCond = sync.NewCond(&m)
@@ -890,4 +998,49 @@ func NewShardDelegator(ctx context.Context, collectionID UniqueID, replicaID Uni
 	}
 	log.Info("finish build new shardDelegator")
 	return sd, nil
+}
+
+func (sd *shardDelegator) handleScanQuery(req *querypb.QueryRequest, sealed *[]SnapshotItem, growing *[]SegmentEntry) (bool, error) {
+	if req.GetReq().GetScanCtx() != nil {
+		scanCtx := req.GetReq().GetScanCtx()
+		scanCtxId := scanCtx.GetScanCtxId()
+		var err error
+		if scanCtx.GetIsInitScan() {
+			if nil != sd.readCtxMap[scanCtxId] {
+				return true, merr.ErrParameterInvalid
+			}
+			var version int64
+			_, _, version, err = sd.distribution.PinReadableSegments(req.GetReq().GetPartitionIDs()...)
+			// don't do actual query for init scan reqeust
+			*sealed = make([]SnapshotItem, 0)
+			*growing = make([]SegmentEntry, 0)
+			sd.readCtxLock.Lock()
+			sd.readCtxMap[scanCtxId] = &ReadContext{
+				snapshotID: version,
+			}
+			sd.readCtxLock.Unlock()
+		} else {
+			scanSegmentIdx := scanCtx.GetSegmentIdx()
+			scanOffset := scanCtx.GetOffset()
+			sd.readCtxLock.RLock()
+			if nil == sd.readCtxMap[scanCtxId] {
+				return true, merr.ErrParameterInvalid
+			}
+			scanCtx := sd.readCtxMap[scanCtxId]
+			if scanCtx == nil {
+				return false, merr.ErrParameterInvalid
+			}
+			*sealed, *growing, err = sd.distribution.PeekSegmentsBySnapshot(scanCtx.snapshotID, true, req.GetReq().GetPartitionIDs()...)
+			if err != nil {
+				return false, err
+			}
+			*sealed, *growing, err = sd.modifyRequestForScan(sealed, growing, scanSegmentIdx, scanOffset)
+			if err != nil {
+				return false, err
+			}
+			sd.readCtxLock.RUnlock()
+		}
+		return true, nil
+	}
+	return false, nil
 }

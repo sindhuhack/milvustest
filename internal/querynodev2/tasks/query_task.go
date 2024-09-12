@@ -38,6 +38,7 @@ func NewQueryTask(ctx context.Context,
 		notifier:       make(chan error, 1),
 		tr:             timerecord.NewTimeRecorderWithTrace(ctx, "queryTask"),
 		scheduleSpan:   span,
+		isScanQuery:    req.Req.ScanCtx != nil,
 	}
 }
 
@@ -50,6 +51,7 @@ type QueryTask struct {
 	notifier       chan error
 	tr             *timerecord.TimeRecorder
 	scheduleSpan   trace.Span
+	isScanQuery    bool
 }
 
 // Return the username which task is belong to.
@@ -105,6 +107,7 @@ func (t *QueryTask) Execute() error {
 		t.req.Req.GetSerializedExprPlan(),
 		t.req.Req.GetMvccTimestamp(),
 		t.req.Req.Base.GetMsgID(),
+		t.req.Req.GetScanCtx(),
 	)
 	if err != nil {
 		return err
@@ -158,7 +161,26 @@ func (t *QueryTask) Execute() error {
 		AllRetrieveCount: reducedResult.GetAllRetrieveCount(),
 		HasMoreResult:    reducedResult.HasMoreResult,
 	}
+	t.handleScan(reducedResult)
 	return nil
+}
+
+func (t *QueryTask) handleScan(reducedResult *segcorepb.RetrieveResults) {
+	if t.req.GetReq().GetScanCtx() != nil {
+		scanReqCtx := t.req.GetReq().GetScanCtx()
+		var lastOffset int64 = -1
+		offsetCount := len(reducedResult.GetOffset())
+		if offsetCount > 0 {
+			lastOffset = reducedResult.GetOffset()[offsetCount-1]
+		}
+		scanResCtx := &internalpb.ScanCtx{
+			ScanCtxId:  scanReqCtx.GetScanCtxId(),
+			SegmentIdx: scanReqCtx.GetSegmentIdx(),
+			MvccTs:     scanReqCtx.GetMvccTs(),
+			Offset:     lastOffset,
+		}
+		t.result.ScanCtx = scanResCtx
+	}
 }
 
 func (t *QueryTask) Done(err error) {
