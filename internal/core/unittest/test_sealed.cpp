@@ -20,6 +20,7 @@
 #include "storage/MmapManager.h"
 #include "storage/MinioChunkManager.h"
 #include "storage/RemoteChunkManagerSingleton.h"
+#include "storage/LocalChunkManagerSingleton.h"
 #include "storage/Util.h"
 #include "test_utils/DataGen.h"
 #include "test_utils/indexbuilder_test_utils.h"
@@ -1540,9 +1541,8 @@ TEST(Sealed, GetSparseVectorFromChunkCache) {
     auto file_name = std::string(
         "sealed_test_get_vector_from_chunk_cache/insert_log/1/101/1000000");
 
-    auto sc = milvus::storage::StorageConfig{};
-    milvus::storage::RemoteChunkManagerSingleton::GetInstance().Init(sc);
-    auto mcm = std::make_unique<milvus::storage::MinioChunkManager>(sc);
+    auto lcm = milvus::storage::LocalChunkManagerSingleton::GetInstance()
+                   .GetChunkManager();
 
     auto schema = std::make_shared<Schema>();
     auto fakevec_id = schema->AddDebugField(
@@ -1566,8 +1566,6 @@ TEST(Sealed, GetSparseVectorFromChunkCache) {
                                         metric_type,
                                         false);
 
-    auto rcm = milvus::storage::RemoteChunkManagerSingleton::GetInstance()
-                   .GetRemoteChunkManager();
     auto data = dataset.get_col<knowhere::sparse::SparseRow<float>>(fakevec_id);
 
     // write to multiple files for better coverage
@@ -1582,7 +1580,7 @@ TEST(Sealed, GetSparseVectorFromChunkCache) {
         slice_sizes.push_back(current_slice_size);
         slice_names.push_back(file_name + "_" + std::to_string(i / slice_size));
     }
-    PutFieldData(rcm.get(),
+    PutFieldData(lcm.get(),
                  data_slices,
                  slice_sizes,
                  slice_names,
@@ -1634,8 +1632,8 @@ TEST(Sealed, GetSparseVectorFromChunkCache) {
     }
 
     for (const auto& name : slice_names) {
-        rcm->Remove(name);
-        auto exist = rcm->Exist(name);
+        lcm->Remove(name);
+        auto exist = lcm->Exist(name);
         Assert(!exist);
     }
 }
