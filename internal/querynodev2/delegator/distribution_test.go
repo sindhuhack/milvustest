@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,7 +30,7 @@ type DistributionSuite struct {
 }
 
 func (s *DistributionSuite) SetupTest() {
-	s.dist = NewDistribution()
+	s.dist = NewDistribution(NewIDFOracle([]*schemapb.FunctionSchema{}))
 	s.Equal(initialTargetVersion, s.dist.getTargetVersion())
 }
 
