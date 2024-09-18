@@ -1034,3 +1034,23 @@ streamingNode:
     serverMaxRecvSize: 268435456 # The maximum size of each RPC request that the streamingNode can receive, unit: byte
     clientMaxSendSize: 268435456 # The maximum size of each RPC request that the clients on streamingNode can send, unit: byte
     clientMaxRecvSize: 268435456 # The maximum size of each RPC request that the clients on streamingNode can receive, unit: byte
+
+knowhere:
+  enable: true
+  HNSW:
+    build:
+      efConstruction : 360
+      M: 30
+    search:
+      ef: 30
+  DISKANN:
+    build:
+      max_degree: 56
+      search_list_size: 100
+      pq_code_budget_gb_ratio: 0.125
+      search_cache_budget_gb_ratio: 0.1
+      beam_width_ratio: 4
+    load:
+      cacheRatio: 0.1
+    search:
+      beamRatio: 4.0
