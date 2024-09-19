@@ -63,12 +63,6 @@ VecIndexConfig::VecIndexConfig(const int64_t max_index_row_cout,
     search_params_[knowhere::indexparam::NPROBE] =
         std::to_string(config_.get_nprobe());
 
-    for (auto it = index_meta_.GetIndexParams().begin();
-         it != index_meta_.GetIndexParams().end();
-         ++it) {
-        LOG_INFO("index build conifg key={} value={}", it->first, it->second);
-    }
-
     // note for sparse vector index: drop_ratio_build is not allowed for growing
     // segment index.
     LOG_INFO(

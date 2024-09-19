@@ -454,7 +454,9 @@ func (sd *shardDelegator) LoadGrowing(ctx context.Context, infos []*querypb.Segm
 
 	for _, segment := range loaded {
 		sd.pkOracle.Register(segment, paramtable.GetNodeID())
-		sd.idfOracle.Register(segment.ID(), segment.GetBM25Stats(), segments.SegmentTypeGrowing)
+		if sd.hasBM25Field {
+			sd.idfOracle.Register(segment.ID(), segment.GetBM25Stats(), segments.SegmentTypeGrowing)
+		}
 	}
 	sd.addGrowing(lo.Map(loaded, func(segment segments.Segment, _ int) SegmentEntry {
 		return SegmentEntry{

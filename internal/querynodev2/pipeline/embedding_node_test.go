@@ -17,8 +17,12 @@
 package pipeline
 
 import (
-	"github.com/stretchr/testify/suite"
+	"testing"
 
+	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/internal/querynodev2/segments"
@@ -59,9 +63,10 @@ func (suite *EmbeddingNodeSuite) SetupSuite() {
 				IsPrimaryKey: true,
 				DataType:     schemapb.DataType_Int64,
 			}, {
-				Name:     "text",
-				FieldID:  101,
-				DataType: schemapb.DataType_VarChar,
+				Name:       "text",
+				FieldID:    101,
+				DataType:   schemapb.DataType_VarChar,
+				TypeParams: []*commonpb.KeyValuePair{},
 			}, {
 				Name:             "sparse",
 				FieldID:          102,
@@ -81,16 +86,19 @@ func (suite *EmbeddingNodeSuite) SetupSuite() {
 		BaseMsg: msgstream.BaseMsg{},
 		InsertRequest: &msgpb.InsertRequest{
 			SegmentID:  1,
+			NumRows:    3,
 			Version:    msgpb.InsertDataVersion_ColumnBased,
 			Timestamps: []uint64{1, 1, 1},
 			FieldsData: []*schemapb.FieldData{
 				{
 					FieldId: 100,
+					Type:    schemapb.DataType_Int64,
 					Field: &schemapb.FieldData_Scalars{
 						Scalars: &schemapb.ScalarField{Data: &schemapb.ScalarField_LongData{LongData: &schemapb.LongArray{Data: []int64{1, 2, 3}}}},
 					},
 				}, {
 					FieldId: 101,
+					Type:    schemapb.DataType_VarChar,
 					Field: &schemapb.FieldData_Scalars{
 						Scalars: &schemapb.ScalarField{Data: &schemapb.ScalarField_StringData{StringData: &schemapb.StringArray{Data: []string{"test1", "test2", "test3"}}}},
 					},
@@ -108,21 +116,75 @@ func (suite *EmbeddingNodeSuite) SetupSuite() {
 	}
 }
 
+func (suite *EmbeddingNodeSuite) TestCreateEmbeddingNode() {
+	suite.Run("collection not found", func() {
+		suite.colManager.EXPECT().Get(suite.collectionID).Return(nil).Once()
+		_, err := newEmbeddingNode(suite.collectionID, suite.channel, suite.manager, 128)
+		suite.Error(err)
+	})
+
+	suite.Run("function invalid", func() {
+		collSchema := proto.Clone(suite.collectionSchema).(*schemapb.CollectionSchema)
+		collection := segments.NewCollectionWithoutSegcore(suite.collectionID, collSchema)
+		collection.Schema().Functions = []*schemapb.FunctionSchema{{}}
+		suite.colManager.EXPECT().Get(suite.collectionID).Return(collection).Once()
+		_, err := newEmbeddingNode(suite.collectionID, suite.channel, suite.manager, 128)
+		suite.Error(err)
+	})
+
+	suite.Run("normal case", func() {
+		collSchema := proto.Clone(suite.collectionSchema).(*schemapb.CollectionSchema)
+		collection := segments.NewCollectionWithoutSegcore(suite.collectionID, collSchema)
+		suite.colManager.EXPECT().Get(suite.collectionID).Return(collection).Once()
+		_, err := newEmbeddingNode(suite.collectionID, suite.channel, suite.manager, 128)
+		suite.NoError(err)
+	})
+}
+
 func (suite *EmbeddingNodeSuite) TestOperator() {
 	suite.Run("collection not found", func() {
 		suite.colManager.EXPECT().Get(suite.collectionID).Return(&segments.Collection{}).Once()
 		node, err := newEmbeddingNode(suite.collectionID, suite.channel, suite.manager, 128)
 		suite.NoError(err)
 
-		suite.colManager.EXPECT().Get(suite.collectionID).Return(nil)
+		suite.colManager.EXPECT().Get(suite.collectionID).Return(nil).Once()
 		suite.Panics(func() {
 			node.Operate(&insertNodeMsg{})
 		})
 	})
 
+	suite.Run("add InsertData Failed", func() {
+		collection := segments.NewCollectionWithoutSegcore(suite.collectionID, suite.collectionSchema)
+		suite.colManager.EXPECT().Get(suite.collectionID).Return(collection).Times(2)
+		node, err := newEmbeddingNode(suite.collectionID, suite.channel, suite.manager, 128)
+		suite.NoError(err)
+
+		suite.Panics(func() {
+			node.Operate(&insertNodeMsg{
+				insertMsgs: []*msgstream.InsertMsg{{
+					BaseMsg: msgstream.BaseMsg{},
+					InsertRequest: &msgpb.InsertRequest{
+						SegmentID: 1,
+						NumRows:   3,
+						Version:   msgpb.InsertDataVersion_ColumnBased,
+						FieldsData: []*schemapb.FieldData{
+							{
+								FieldId: 100,
+								Type:    schemapb.DataType_Int64,
+								Field: &schemapb.FieldData_Scalars{
+									Scalars: &schemapb.ScalarField{Data: &schemapb.ScalarField_LongData{LongData: &schemapb.LongArray{Data: []int64{1, 2, 3}}}},
+								},
+							},
+						},
+					},
+				}},
+			})
+		})
+	})
+
 	suite.Run("normal case", func() {
-		collection := segments.NewCollection(suite.collectionID, suite.collectionSchema, nil, nil)
-		suite.colManager.EXPECT().Get(suite.collectionID).Return(collection)
+		collection := segments.NewCollectionWithoutSegcore(suite.collectionID, suite.collectionSchema)
+		suite.colManager.EXPECT().Get(suite.collectionID).Return(collection).Times(2)
 		node, err := newEmbeddingNode(suite.collectionID, suite.channel, suite.manager, 128)
 		suite.NoError(err)
 
@@ -132,10 +194,14 @@ func (suite *EmbeddingNodeSuite) TestOperator() {
 			})
 
 			msg, ok := output.(*insertNodeMsg)
-			suite.True(ok)
-			suite.NotNil(msg.insertDatas)
-			suite.Equal(3, msg.insertDatas[0].BM25Stats[102].NumRow())
-			suite.Equal(3, msg.insertDatas[0].InsertRecord.GetNumRows())
+			suite.Require().True(ok)
+			suite.Require().NotNil(msg.insertDatas)
+			suite.Require().Equal(int64(3), msg.insertDatas[1].BM25Stats[102].NumRow())
+			suite.Require().Equal(int64(3), msg.insertDatas[1].InsertRecord.GetNumRows())
 		})
 	})
+}
+
+func TestEmbeddingNode(t *testing.T) {
+	suite.Run(t, new(EmbeddingNodeSuite))
 }

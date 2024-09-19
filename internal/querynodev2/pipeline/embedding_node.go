@@ -40,9 +40,6 @@ import (
 type embeddingNode struct {
 	*BaseNode
 
-	schema  *schemapb.CollectionSchema
-	pkField *schemapb.FieldSchema
-
 	collectionID int64
 	channel      string
 
@@ -67,13 +64,6 @@ func newEmbeddingNode(collectionID int64, channelName string, manager *DataManag
 		return nil, merr.WrapErrCollectionNotFound(collectionID)
 	}
 
-	for _, field := range collection.Schema().GetFields() {
-		if field.IsPrimaryKey {
-			node.pkField = field
-			break
-		}
-	}
-
 	for _, tf := range collection.Schema().GetFunctions() {
 		functionRunner, err := function.NewFunctionRunner(collection.Schema(), tf)
 		if err != nil {
@@ -88,7 +78,7 @@ func (eNode *embeddingNode) Name() string {
 	return fmt.Sprintf("embeddingNode-%s-%s", "BM25test", eNode.channel)
 }
 
-func (eNode *embeddingNode) addInsertData(insertDatas map[UniqueID]*delegator.InsertData, msg *InsertMsg, collection *Collection) {
+func (eNode *embeddingNode) addInsertData(insertDatas map[UniqueID]*delegator.InsertData, msg *InsertMsg, collection *Collection) error {
 	iData, ok := insertDatas[msg.SegmentID]
 	if !ok {
 		iData = &delegator.InsertData{
@@ -105,14 +95,14 @@ func (eNode *embeddingNode) addInsertData(insertDatas map[UniqueID]*delegator.In
 	err := eNode.embedding(msg, iData.BM25Stats)
 	if err != nil {
 		log.Error("failed to function data", zap.Error(err))
-		panic(err)
+		return err
 	}
 
 	insertRecord, err := storage.TransferInsertMsgToInsertRecord(collection.Schema(), msg)
 	if err != nil {
 		err = fmt.Errorf("failed to get primary keys, err = %d", err)
 		log.Error(err.Error(), zap.Int64("collectionID", eNode.collectionID), zap.String("channel", eNode.channel))
-		panic(err)
+		return err
 	}
 
 	if iData.InsertRecord == nil {
@@ -121,7 +111,7 @@ func (eNode *embeddingNode) addInsertData(insertDatas map[UniqueID]*delegator.In
 		err := typeutil.MergeFieldData(iData.InsertRecord.FieldsData, insertRecord.FieldsData)
 		if err != nil {
 			log.Error("failed to merge field data", zap.Error(err))
-			panic(err)
+			return err
 		}
 		iData.InsertRecord.NumRows += insertRecord.NumRows
 	}
@@ -129,7 +119,7 @@ func (eNode *embeddingNode) addInsertData(insertDatas map[UniqueID]*delegator.In
 	pks, err := segments.GetPrimaryKeys(msg, collection.Schema())
 	if err != nil {
 		log.Error("failed to get primary keys from insert message", zap.Error(err))
-		panic(err)
+		return err
 	}
 
 	iData.PrimaryKeys = append(iData.PrimaryKeys, pks...)
@@ -141,6 +131,7 @@ func (eNode *embeddingNode) addInsertData(insertDatas map[UniqueID]*delegator.In
 		zap.Int("insertRowNum", len(pks)),
 		zap.Uint64("timestampMin", msg.BeginTimestamp),
 		zap.Uint64("timestampMax", msg.EndTimestamp))
+	return nil
 }
 
 func (eNode *embeddingNode) bm25Embedding(runner function.FunctionRunner, msg *msgstream.InsertMsg, stats map[int64]*storage.BM25Stats) error {
@@ -201,7 +192,10 @@ func (eNode *embeddingNode) Operate(in Msg) Msg {
 	}
 
 	for _, msg := range nodeMsg.insertMsgs {
-		eNode.addInsertData(nodeMsg.insertDatas, msg, collection)
+		err := eNode.addInsertData(nodeMsg.insertDatas, msg, collection)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return nodeMsg
