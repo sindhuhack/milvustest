@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/golang/protobuf/proto"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
@@ -546,7 +546,6 @@ func (sd *shardDelegator) LoadSegments(ctx context.Context, req *querypb.LoadSeg
 	if req.GetInfos()[0].GetLevel() == datapb.SegmentLevel_L0 {
 		sd.RefreshLevel0DeletionStats()
 	} else {
-
 		// load bloom filter only when candidate not exists
 		infos := lo.Filter(req.GetInfos(), func(info *querypb.SegmentLoadInfo, _ int) bool {
 			return !sd.pkOracle.Exists(pkoracle.NewCandidateKey(info.GetSegmentID(), info.GetPartitionID(), commonpb.SegmentState_Sealed), targetNodeID)
@@ -574,7 +573,6 @@ func (sd *shardDelegator) LoadSegments(ctx context.Context, req *querypb.LoadSeg
 			log.Warn("load stream delete failed", zap.Error(err))
 			return err
 		}
-
 	}
 
 	// alter distribution
@@ -1068,13 +1066,11 @@ func (sd *shardDelegator) buildBM25IDF(req *internalpb.SearchRequest) (float64, 
 	pb := &commonpb.PlaceholderGroup{}
 	proto.Unmarshal(req.GetPlaceholderGroup(), pb)
 	holder := pb.Placeholders[0]
-	log.Info("test-- fetch bm25 search", zap.Any("group", holder))
 	if holder.Type != commonpb.PlaceholderType_VarChar {
 		return 0, fmt.Errorf("can't build BM25 IDF for data not varchar")
 	}
 
 	str := funcutil.GetVarCharFromPlaceholder(holder)
-	log.Info("test-- fetch bm25 search", zap.Strings("strs", str))
 	functionRunner, ok := sd.functionRunners[req.GetFieldID()]
 	if !ok {
 		return 0, fmt.Errorf("functionRunner not found for field: %d", req.GetFieldID())
@@ -1088,7 +1084,7 @@ func (sd *shardDelegator) buildBM25IDF(req *internalpb.SearchRequest) (float64, 
 
 	tfArray, ok := output[0].(*schemapb.SparseFloatArray)
 	if !ok {
-		return 0, fmt.Errorf("functionRunner return unkonwn data")
+		return 0, fmt.Errorf("functionRunner return unknown data")
 	}
 
 	idfSparseVector, avgdl, err := sd.idfOracle.BuildIDF(req.GetFieldID(), tfArray)

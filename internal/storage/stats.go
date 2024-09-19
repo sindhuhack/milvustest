@@ -454,7 +454,6 @@ func (m *BM25Stats) Deserialize(bs []byte) error {
 		m.rowsWithToken[keys[i]] += values[i]
 	}
 
-	log.Info("test-- deserialize", zap.Int64("numrow", m.numRow), zap.Int64("tokenNum", m.numToken))
 	return nil
 }
 

@@ -27,7 +27,6 @@ import (
 	"github.com/milvus-io/milvus/internal/querynodev2/segments"
 	"github.com/milvus-io/milvus/internal/storage"
 	"github.com/milvus-io/milvus/pkg/log"
-	"github.com/milvus-io/milvus/pkg/util/typeutil"
 )
 
 type IDFOracle interface {
@@ -113,7 +112,6 @@ func (o *idfOracle) Register(segmentID int64, stats map[int64]*storage.BM25Stats
 	o.Lock()
 	defer o.Unlock()
 
-	log.Info("test-- register idf", zap.Int64("segmentID", segmentID), zap.String("state", state.String()))
 	switch state {
 	case segments.SegmentTypeGrowing:
 		if _, ok := o.growing[segmentID]; ok {
@@ -156,7 +154,6 @@ func (o *idfOracle) UpdateGrowing(segmentID int64, stats map[int64]*storage.BM25
 	if old.activate {
 		o.current.Merge(stats)
 	}
-	log.Info("test-- update idf", zap.Int64("segmentID", segmentID))
 }
 
 func (o *idfOracle) Remove(segmentID int64, state commonpb.SegmentState) {
@@ -199,7 +196,6 @@ func (o *idfOracle) SyncDistribution(snapshot *snapshot) {
 
 	sealed, growing := snapshot.Peek()
 
-	log.Info("test-- snapshot", zap.Int64("version", snapshot.targetVersion), zap.Any("seal", sealed), zap.Any("grow", growing))
 	for _, item := range sealed {
 		for _, segment := range item.Segments {
 			if stats, ok := o.sealed[segment.SegmentID]; ok {
@@ -220,12 +216,10 @@ func (o *idfOracle) SyncDistribution(snapshot *snapshot) {
 
 	o.targetVersion = snapshot.targetVersion
 
-	for seg, stats := range o.sealed {
+	for _, stats := range o.sealed {
 		if !stats.activate && stats.targetVersion == o.targetVersion {
-			log.Info("test-- activate", zap.Int64("segment", seg))
 			o.activate(stats)
 		} else if stats.activate && stats.targetVersion != o.targetVersion {
-			log.Info("test-- deactivate", zap.Int64("segment", seg))
 			o.deactivate(stats)
 		}
 	}
@@ -238,7 +232,7 @@ func (o *idfOracle) SyncDistribution(snapshot *snapshot) {
 		}
 	}
 
-	log.Info("test-- sync distribution finished", zap.Int64("version", o.targetVersion), zap.Int64("numrow", o.current.NumRow()))
+	log.Debug("sync distribution finished", zap.Int64("version", o.targetVersion), zap.Int64("numrow", o.current.NumRow()))
 }
 
 func (o *idfOracle) BuildIDF(fieldID int64, tfs *schemapb.SparseFloatArray) ([][]byte, float64, error) {
@@ -254,7 +248,6 @@ func (o *idfOracle) BuildIDF(fieldID int64, tfs *schemapb.SparseFloatArray) ([][
 	for i, tf := range tfs.GetContents() {
 		idf := stats.BuildIDF(tf)
 		idfBytes[i] = idf
-		log.Info("test-- build bm25 idf", zap.Any("idf", typeutil.SparseFloatBytesToMap(idf)))
 	}
 	return idfBytes, stats.GetAvgdl(), nil
 }

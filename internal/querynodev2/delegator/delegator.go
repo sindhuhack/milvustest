@@ -309,7 +309,6 @@ func (sd *shardDelegator) Search(ctx context.Context, req *querypb.SearchRequest
 		Observe(float64(waitTr.ElapseSpan().Milliseconds()))
 
 	// build idf for bm25 search
-	log.Info("test-- fetch search", zap.String("metric type", req.GetReq().GetMetricType()))
 	if req.GetReq().GetMetricType() == metric.BM25 {
 		avgdl, err := sd.buildBM25IDF(req.GetReq())
 		if err != nil {

@@ -149,10 +149,6 @@ func (eNode *embeddingNode) bm25Embedding(runner function.FunctionRunner, msg *m
 	outputFieldID := functionSchema.GetOutputFieldIds()[0]
 	outputField := runner.GetOutputFields()[0]
 
-	// TODO REMOVE CODE FOR TEST
-	// REMOVE invalid vector field data used as placeholder
-	msg.FieldsData = RemoveFieldData(msg.GetFieldsData(), outputFieldID)
-
 	data, err := GetEmbeddingFieldData(msg.GetFieldsData(), inputFieldID)
 	if data == nil || err != nil {
 		return merr.WrapErrFieldNotFound(fmt.Sprint(inputFieldID))
@@ -169,7 +165,7 @@ func (eNode *embeddingNode) bm25Embedding(runner function.FunctionRunner, msg *m
 
 	sparseArray, ok := output[0].(*schemapb.SparseFloatArray)
 	if !ok {
-		return fmt.Errorf("bm25 runner return unknown type output")
+		return fmt.Errorf("BM25 runner return unknown type output")
 	}
 	stats[outputFieldID].AppendBytes(sparseArray.GetContents()...)
 	msg.FieldsData = append(msg.FieldsData, delegator.BuildSparseFieldData(outputField, sparseArray))
@@ -186,8 +182,8 @@ func (eNode *embeddingNode) embedding(msg *msgstream.InsertMsg, stats map[int64]
 				return err
 			}
 		default:
-			log.Warn("pipeline embedding with unkonwn function type", zap.Any("type", functionSchema.GetType()))
-			return fmt.Errorf("Unknown function type")
+			log.Warn("pipeline embedding with unknown function type", zap.Any("type", functionSchema.GetType()))
+			return fmt.Errorf("unknown function type")
 		}
 	}
 
@@ -200,8 +196,8 @@ func (eNode *embeddingNode) Operate(in Msg) Msg {
 
 	collection := eNode.manager.Collection.Get(eNode.collectionID)
 	if collection == nil {
-		log.Error("insertNode with collection not exist", zap.Int64("collection", eNode.collectionID))
-		panic("insertNode with collection not exist")
+		log.Error("embeddingNode with collection not exist", zap.Int64("collection", eNode.collectionID))
+		panic("embeddingNode with collection not exist")
 	}
 
 	for _, msg := range nodeMsg.insertMsgs {
@@ -217,14 +213,5 @@ func GetEmbeddingFieldData(datas []*schemapb.FieldData, fieldID int64) ([]string
 			return data.GetScalars().GetStringData().GetData(), nil
 		}
 	}
-	return nil, fmt.Errorf("field%d not found", fieldID)
-}
-
-func RemoveFieldData(datas []*schemapb.FieldData, fieldID int64) []*schemapb.FieldData {
-	for id, data := range datas {
-		if data.GetFieldId() == fieldID {
-			return append(datas[:id], datas[id+1:]...)
-		}
-	}
-	return datas
+	return nil, fmt.Errorf("field %d not found", fieldID)
 }

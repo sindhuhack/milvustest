@@ -125,7 +125,6 @@ VecIndexConfig::GetSearchConf(const SearchInfo& searchInfo) {
         searchParam.search_params_[knowhere::meta::BM25_AVGDL] =
             searchInfo.search_params_[knowhere::meta::BM25_AVGDL];
     }
-    LOG_INFO("test--index param = {}", searchInfo.search_params_.dump());
     return searchParam;
 }
 
