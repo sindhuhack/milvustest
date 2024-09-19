@@ -220,17 +220,6 @@ func GetEmbeddingFieldData(datas []*schemapb.FieldData, fieldID int64) ([]string
 	return nil, fmt.Errorf("field%d not found", fieldID)
 }
 
-func GetSparseVectorDim(data [][]byte) int64 {
-	result := int64(0)
-	for _, vector := range data {
-		dim := typeutil.SparseFloatRowDim(vector)
-		if dim > result {
-			result = dim
-		}
-	}
-	return result
-}
-
 func RemoveFieldData(datas []*schemapb.FieldData, fieldID int64) []*schemapb.FieldData {
 	for id, data := range datas {
 		if data.GetFieldId() == fieldID {

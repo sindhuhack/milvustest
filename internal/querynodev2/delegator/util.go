@@ -49,7 +49,7 @@ func SetBM25Params(req *internalpb.SearchRequest, avgdl float64) error {
 	switch plan.GetNode().(type) {
 	case *planpb.PlanNode_VectorAnns:
 		queryInfo := plan.GetVectorAnns().GetQueryInfo()
-		queryInfo.Avgdl = avgdl
+		queryInfo.Bm25Avgdl = avgdl
 		serializedExprPlan, err := proto.Marshal(&plan)
 		if err != nil {
 			log.Warn("failed to marshal optimized plan", zap.Error(err))

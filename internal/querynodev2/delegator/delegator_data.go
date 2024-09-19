@@ -554,7 +554,7 @@ func (sd *shardDelegator) LoadSegments(ctx context.Context, req *querypb.LoadSeg
 
 		// TODO AOIASD SKIP IF COLLECTION WITHOUT BM25
 		var bm25Stats *typeutil.ConcurrentMap[int64, map[int64]*storage.BM25Stats]
-		if sd.isBM25 {
+		if sd.hasBM25Field {
 			bm25Stats, err = sd.loader.LoadBM25Stats(ctx, req.GetCollectionID(), infos...)
 			if err != nil {
 				log.Warn("failed to load bm25 stats for segment", zap.Error(err))

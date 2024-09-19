@@ -141,9 +141,9 @@ type shardDelegator struct {
 	growingSegmentLock sync.RWMutex
 	partitionStatsMut  sync.RWMutex
 
-	// fieldId -> functionRunner map for bm25 search
+	// fieldId -> functionRunner map for search function field
 	functionRunners map[UniqueID]function.FunctionRunner
-	isBM25          bool
+	hasBM25Field    bool
 }
 
 // getLogger returns the zap logger with pre-defined shard attributes.
@@ -918,7 +918,7 @@ func NewShardDelegator(ctx context.Context, collectionID UniqueID, replicaID Uni
 			}
 			sd.functionRunners[tf.OutputFieldIds[0]] = functionRunner
 			if tf.GetType() == schemapb.FunctionType_BM25 {
-				sd.isBM25 = true
+				sd.hasBM25Field = true
 			}
 		}
 	}

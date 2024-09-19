@@ -34,7 +34,7 @@ type IDFOracle interface {
 	// Activate(segmentID int64, state commonpb.SegmentState) error
 	// Deactivate(segmentID int64, state commonpb.SegmentState) error
 
-	SyncDistrbution(snapshot *snapshot)
+	SyncDistribution(snapshot *snapshot)
 
 	UpdateGrowing(segmentID int64, stats map[int64]*storage.BM25Stats)
 
@@ -193,7 +193,7 @@ func (o *idfOracle) deactivate(stats *bm25Stats) {
 	o.current.Minus(stats.stats)
 }
 
-func (o *idfOracle) SyncDistrbution(snapshot *snapshot) {
+func (o *idfOracle) SyncDistribution(snapshot *snapshot) {
 	o.Lock()
 	defer o.Unlock()
 

@@ -370,7 +370,7 @@ func (d *distribution) genSnapshot() chan struct{} {
 	d.current.Store(newSnapShot)
 	// shall be a new one
 	d.snapshots.GetOrInsert(d.snapshotVersion, newSnapShot)
-	d.idfOracle.SyncDistrbution(newSnapShot)
+	d.idfOracle.SyncDistribution(newSnapShot)
 
 	// first snapshot, return closed chan
 	if last == nil {
