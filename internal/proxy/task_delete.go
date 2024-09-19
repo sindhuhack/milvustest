@@ -275,7 +275,6 @@ func repackDeleteMsgByHash(
 			cnt++
 		}
 	}
-	log.Info("test-- end repack", zap.Duration("cost", time.Since(st)), zap.Int("num", numMessage), zap.Any("result", result))
 	return result, numRows, nil
 }
 
