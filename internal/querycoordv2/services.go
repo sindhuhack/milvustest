@@ -112,6 +112,14 @@ func (s *Server) ShowCollections(ctx context.Context, req *querypb.ShowCollectio
 			}, nil
 		}
 
+		if !s.targetMgr.IsCurrentTargetExist(collectionID, -1) {
+			err := merr.WrapErrCollectionNotFullyLoaded(collectionID)
+			log.Warn("show collection failed", zap.Error(err))
+			return &querypb.ShowCollectionsResponse{
+				Status: merr.Status(err),
+			}, nil
+		}
+
 		if collection.IsRefreshed() {
 			refreshProgress = 100
 		}

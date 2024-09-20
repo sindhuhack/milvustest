@@ -58,6 +58,7 @@ func (suite *UtilTestSuite) TestCheckLeaderAvaliable() {
 	}
 
 	mockTargetManager := meta.NewMockTargetManager(suite.T())
+	mockTargetManager.EXPECT().IsCurrentTargetExist(mock.Anything, mock.Anything).Return(true).Maybe()
 	mockTargetManager.EXPECT().GetSealedSegmentsByChannel(mock.Anything, mock.Anything, mock.Anything).Return(map[int64]*datapb.SegmentInfo{
 		2: {
 			ID:            2,
@@ -78,6 +79,7 @@ func (suite *UtilTestSuite) TestCheckLeaderAvaliableFailed() {
 			Segments: map[int64]*querypb.SegmentDist{2: {NodeID: 2}},
 		}
 		mockTargetManager := meta.NewMockTargetManager(suite.T())
+		mockTargetManager.EXPECT().IsCurrentTargetExist(mock.Anything, mock.Anything).Return(true).Maybe()
 		mockTargetManager.EXPECT().GetSealedSegmentsByChannel(mock.Anything, mock.Anything, mock.Anything).Return(map[int64]*datapb.SegmentInfo{
 			2: {
 				ID:            2,
@@ -99,6 +101,7 @@ func (suite *UtilTestSuite) TestCheckLeaderAvaliableFailed() {
 		}
 
 		mockTargetManager := meta.NewMockTargetManager(suite.T())
+		mockTargetManager.EXPECT().IsCurrentTargetExist(mock.Anything, mock.Anything).Return(true).Maybe()
 		mockTargetManager.EXPECT().GetSealedSegmentsByChannel(mock.Anything, mock.Anything, mock.Anything).Return(map[int64]*datapb.SegmentInfo{
 			2: {
 				ID:            2,
@@ -119,6 +122,7 @@ func (suite *UtilTestSuite) TestCheckLeaderAvaliableFailed() {
 			Segments: map[int64]*querypb.SegmentDist{2: {NodeID: 2}},
 		}
 		mockTargetManager := meta.NewMockTargetManager(suite.T())
+		mockTargetManager.EXPECT().IsCurrentTargetExist(mock.Anything, mock.Anything).Return(true).Maybe()
 		mockTargetManager.EXPECT().GetSealedSegmentsByChannel(mock.Anything, mock.Anything, mock.Anything).Return(map[int64]*datapb.SegmentInfo{
 			// target segmentID=1 not in leadView
 			1: {

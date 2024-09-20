@@ -28,6 +28,7 @@ import (
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/querycoordv2/meta"
 	"github.com/milvus-io/milvus/internal/querycoordv2/session"
+	"github.com/milvus-io/milvus/pkg/common"
 	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/util/merr"
 	"github.com/milvus-io/milvus/pkg/util/paramtable"
@@ -49,7 +50,14 @@ func CheckLeaderAvailable(nodeMgr *session.NodeManager, targetMgr meta.TargetMan
 	log := log.Ctx(context.TODO()).
 		WithRateGroup("utils.CheckLeaderAvailable", 1, 60).
 		With(zap.Int64("leaderID", leader.ID))
+
 	info := nodeMgr.Get(leader.ID)
+
+	if !targetMgr.IsCurrentTargetExist(leader.CollectionID, common.AllPartitionsID) {
+		err := merr.WrapErrCollectionNotFullyLoaded(leader.CollectionID, "target not ready")
+		log.Info("leader is not available due to lack of target", zap.Error(err))
+		return err
+	}
 
 	// Check whether leader is online
 	err := CheckNodeAvailable(leader.ID, info)
@@ -83,6 +91,7 @@ func CheckLeaderAvailable(nodeMgr *session.NodeManager, targetMgr meta.TargetMan
 			return merr.WrapErrSegmentLack(segmentID)
 		}
 	}
+
 	return nil
 }
 
