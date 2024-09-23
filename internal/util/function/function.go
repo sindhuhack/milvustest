@@ -31,6 +31,7 @@ type FunctionRunner interface {
 	GetOutputFields() []*schemapb.FieldSchema
 }
 
+
 func NewFunctionRunner(coll *schemapb.CollectionSchema, schema *schemapb.FunctionSchema) (FunctionRunner, error) {
 	switch schema.GetType() {
 	case schemapb.FunctionType_BM25:
@@ -38,4 +39,36 @@ func NewFunctionRunner(coll *schemapb.CollectionSchema, schema *schemapb.Functio
 	default:
 		return nil, fmt.Errorf("unknown functionRunner type %s", schema.GetType().String())
 	}
+}
+
+
+type FunctionBase struct {
+	schema      *schemapb.FunctionSchema
+	outputFields []*schemapb.FieldSchema
+}
+
+func NewBase(coll *schemapb.CollectionSchema, schema *schemapb.FunctionSchema) (*FunctionBase, error) {
+	var base FunctionBase
+	base.schema = schema
+	for _, field_id := range schema.GetOutputFieldIds() {
+		for _, field := range coll.GetFields() {
+			if field.GetFieldID() == field_id {
+				base.outputFields = append(base.outputFields, field)
+				break
+			}
+		}
+	}
+
+	if len(base.outputFields) != len(schema.GetOutputFieldIds()) {
+		return &base, fmt.Errorf("Collection [%s]'s function [%s]'s outputs mismatch schema", coll.Name, schema.Name)
+	}
+	return &base, nil
+}
+
+func (base *FunctionBase) GetSchema() *schemapb.FunctionSchema {
+	return base.schema
+}
+
+func (base *FunctionBase) GetOutputFields() []*schemapb.FieldSchema {
+	return base.outputFields
 }
