@@ -140,17 +140,6 @@ func (t *mixCompactionTask) mergeSplit(
 	compAlloc := NewCompactionAllocator(segIDAlloc, logIDAlloc)
 	mWriter := NewMultiSegmentWriter(t.binlogIO, compAlloc, t.plan, t.maxRows, t.partitionID, t.collectionID)
 
-	isValueDeleted := func(v *storage.Value) bool {
-		ts, ok := delta[v.PK.GetValue()]
-		// insert task and delete task has the same ts when upsert
-		// here should be < instead of <=
-		// to avoid the upsert data to be deleted after compact
-		if ok && uint64(v.Timestamp) < ts {
-			return true
-		}
-		return false
-	}
-
 	deletedRowCount := int64(0)
 	expiredRowCount := int64(0)
 
@@ -160,50 +149,9 @@ func (t *mixCompactionTask) mergeSplit(
 		return nil, err
 	}
 	for _, paths := range binlogPaths {
-		log := log.With(zap.Strings("paths", paths))
-		allValues, err := t.binlogIO.Download(ctx, paths)
+		err := t.dealBinlogPaths(ctx, mWriter, pkField, paths, &deletedRowCount, &expiredRowCount)
 		if err != nil {
-			log.Warn("compact wrong, fail to download insertLogs", zap.Error(err))
 			return nil, err
-		}
-
-		blobs := lo.Map(allValues, func(v []byte, i int) *storage.Blob {
-			return &storage.Blob{Key: paths[i], Value: v}
-		})
-
-		iter, err := storage.NewBinlogDeserializeReader(blobs, pkField.GetFieldID())
-		if err != nil {
-			log.Warn("compact wrong, failed to new insert binlogs reader", zap.Error(err))
-			return nil, err
-		}
-
-		for {
-			err := iter.Next()
-			if err != nil {
-				if err == sio.EOF {
-					break
-				} else {
-					log.Warn("compact wrong, failed to iter through data", zap.Error(err))
-					return nil, err
-				}
-			}
-			v := iter.Value()
-			if isValueDeleted(v) {
-				deletedRowCount++
-				continue
-			}
-
-			// Filtering expired entity
-			if isExpiredEntity(t.plan.GetCollectionTtl(), t.currentTs, typeutil.Timestamp(v.Timestamp)) {
-				expiredRowCount++
-				continue
-			}
-
-			err = mWriter.Write(v)
-			if err != nil {
-				log.Warn("compact wrong, failed to writer row", zap.Error(err))
-				return nil, err
-			}
 		}
 	}
 	res, err := mWriter.Finish()
@@ -220,6 +168,70 @@ func (t *mixCompactionTask) mergeSplit(
 		zap.Duration("total elapse", totalElapse))
 
 	return res, nil
+}
+
+func isValueDeleted(v *storage.Value) bool {
+	ts, ok := delta[v.PK.GetValue()]
+	// insert task and delete task has the same ts when upsert
+	// here should be < instead of <=
+	// to avoid the upsert data to be deleted after compact
+	if ok && uint64(v.Timestamp) < ts {
+		return true
+	}
+	return false
+}
+
+func (t *mixCompactionTask) dealBinlogPaths(ctx context.Context, mWriter *MultiSegmentWriter, pkField *schemapb.FieldSchema, paths []string, deletedRowCount, expiredRowCount *int64) error {
+	log := log.With(zap.Strings("paths", paths))
+	allValues, err := t.binlogIO.Download(ctx, paths)
+	if err != nil {
+		log.Warn("compact wrong, fail to download insertLogs", zap.Error(err))
+		return err
+	}
+
+	blobs := lo.Map(allValues, func(v []byte, i int) *storage.Blob {
+		return &storage.Blob{Key: paths[i], Value: v}
+	})
+
+	iter, err := storage.NewBinlogDeserializeReader(blobs, pkField.GetFieldID())
+	if err != nil {
+		log.Warn("compact wrong, failed to new insert binlogs reader", zap.Error(err))
+		return err
+	}
+	defer iter.Close()
+
+	for {
+		err := iter.Next()
+		if err != nil {
+			if err == sio.EOF {
+				break
+			} else {
+				log.Warn("compact wrong, failed to iter through data", zap.Error(err))
+				return err
+			}
+		}
+		v := iter.Value()
+		if isValueDeleted(v) {
+			oldDeletedRowCount := *deletedRowCount
+			*deletedRowCount = oldDeletedRowCount + 1
+			continue
+		}
+
+		// Filtering expired entity
+		if isExpiredEntity(t.plan.GetCollectionTtl(), t.currentTs, typeutil.Timestamp(v.Timestamp)) {
+			oldExpiredRowCount := *expiredRowCount
+			*expiredRowCount = oldExpiredRowCount + 1
+			continue
+		}
+
+		err = mWriter.Write(v)
+		if err != nil {
+			log.Warn("compact wrong, failed to writer row", zap.Error(err))
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (t *mixCompactionTask) Compact() (*datapb.CompactionPlanResult, error) {
