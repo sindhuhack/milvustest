@@ -698,7 +698,7 @@ func (s *Server) stopCompaction() {
 		s.compactionTrigger.stop()
 	}
 	if s.compactionTriggerManager != nil {
-		s.compactionTriggerManager.Stop()
+		s.compactionTriggerManager.Close()
 	}
 
 	if s.compactionHandler != nil {
