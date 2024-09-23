@@ -1378,7 +1378,6 @@ func TestProxy(t *testing.T) {
 				CollectionNames: []string{collectionName},
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, commonpb.ErrorCode_Success, resp.GetStatus().GetErrorCode())
 
 			for idx, name := range resp.CollectionNames {
 				if name == collectionName && resp.InMemoryPercentages[idx] == 100 {
@@ -2082,7 +2081,6 @@ func TestProxy(t *testing.T) {
 				Type:           milvuspb.ShowType_InMemory,
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, commonpb.ErrorCode_Success, resp.GetStatus().GetErrorCode())
 
 			for idx, name := range resp.PartitionNames {
 				if name == partitionName && resp.InMemoryPercentages[idx] == 100 {

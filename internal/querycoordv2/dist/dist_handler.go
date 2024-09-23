@@ -40,17 +40,18 @@ import (
 )
 
 type distHandler struct {
-	nodeID       int64
-	c            chan struct{}
-	wg           sync.WaitGroup
-	client       session.Cluster
-	nodeManager  *session.NodeManager
-	scheduler    task.Scheduler
-	dist         *meta.DistributionManager
-	target       meta.TargetManagerInterface
-	mu           sync.Mutex
-	stopOnce     sync.Once
-	lastUpdateTs int64
+	nodeID                int64
+	c                     chan struct{}
+	wg                    sync.WaitGroup
+	client                session.Cluster
+	nodeManager           *session.NodeManager
+	scheduler             task.Scheduler
+	dist                  *meta.DistributionManager
+	target                meta.TargetManagerInterface
+	mu                    sync.Mutex
+	stopOnce              sync.Once
+	lastUpdateTs          int64
+	forcePullDistribution bool
 }
 
 func (dh *distHandler) start(ctx context.Context) {
@@ -223,8 +224,10 @@ func (dh *distHandler) updateLeaderView(resp *querypb.GetDataDistributionRespons
 		}
 		// check leader serviceable
 		// todo by weiliu1031: serviceable status should be maintained by delegator, to avoid heavy check here
+		dh.forcePullDistribution = false
 		if err := utils.CheckLeaderAvailable(dh.nodeManager, dh.target, view); err != nil {
 			view.UnServiceableError = err
+			dh.forcePullDistribution = true
 		}
 		updates = append(updates, view)
 	}
@@ -236,13 +239,17 @@ func (dh *distHandler) getDistribution(ctx context.Context) (*querypb.GetDataDis
 	dh.mu.Lock()
 	defer dh.mu.Unlock()
 
+	lastUpdateTs := dh.lastUpdateTs
+	if dh.forcePullDistribution {
+		lastUpdateTs = 0
+	}
 	ctx, cancel := context.WithTimeout(ctx, paramtable.Get().QueryCoordCfg.DistributionRequestTimeout.GetAsDuration(time.Millisecond))
 	defer cancel()
 	resp, err := dh.client.GetDataDistribution(ctx, dh.nodeID, &querypb.GetDataDistributionRequest{
 		Base: commonpbutil.NewMsgBase(
 			commonpbutil.WithMsgType(commonpb.MsgType_GetDistribution),
 		),
-		LastUpdateTs: dh.lastUpdateTs,
+		LastUpdateTs: lastUpdateTs,
 	})
 	if err != nil {
 		return nil, err

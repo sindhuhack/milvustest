@@ -68,6 +68,7 @@ func (suite *DistHandlerSuite) SetupSuite() {
 	suite.scheduler.EXPECT().GetExecutedFlag(mock.Anything).Return(suite.executedFlagChan).Maybe()
 	suite.target.EXPECT().GetSealedSegment(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	suite.target.EXPECT().GetDmChannel(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	suite.target.EXPECT().IsCurrentTargetExist(mock.Anything, mock.Anything).Return(true).Maybe()
 }
 
 func (suite *DistHandlerSuite) TestBasic() {
