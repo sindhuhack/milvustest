@@ -977,3 +977,85 @@ func (kc *Catalog) DropStatsTask(ctx context.Context, taskID typeutil.UniqueID) 
 	key := buildStatsTaskKey(taskID)
 	return kc.MetaKv.Remove(key)
 }
+
+func (kc *Catalog) SaveVShardInfos(ctx context.Context, vshards []*datapb.VShardInfo) error {
+	kvs := make(map[string]string)
+	for _, vshard := range vshards {
+		key := buildVshardInfoPath(vshard.GetCollectionId(), vshard.GetPartitionId(), vshard.GetVchannel(), vshard.VshardDesc.GetVshardNum(), vshard.VshardDesc.GetVshardId())
+		segBytes, err := proto.Marshal(vshard)
+		if err != nil {
+			return err
+		}
+		value := string(segBytes)
+		kvs[key] = value
+	}
+
+	return kc.MetaKv.MultiSave(kvs)
+}
+
+func (kc *Catalog) DropVShardInfo(ctx context.Context, vshard *datapb.VShardInfo) error {
+	key := buildVshardInfoPath(vshard.GetCollectionId(), vshard.GetPartitionId(), vshard.GetVchannel(), vshard.VshardDesc.GetVshardNum(), vshard.VshardDesc.GetVshardId())
+	return kc.MetaKv.Remove(key)
+}
+
+func (kc *Catalog) ListVShardInfos(ctx context.Context) ([]*datapb.VShardInfo, error) {
+	infos := make([]*datapb.VShardInfo, 0)
+	_, values, err := kc.MetaKv.LoadWithPrefix(VshardInfoPrefix)
+	if err != nil {
+		return nil, err
+	}
+	for _, value := range values {
+		info := &datapb.VShardInfo{}
+		err = proto.Unmarshal([]byte(value), info)
+		if err != nil {
+			return nil, err
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
+}
+
+func (kc *Catalog) SaveReVShardTask(ctx context.Context, task *datapb.ReVShardTask) error {
+	key := buildReVshardTaskPath(task.GetCollectionId(), task.GetPartitionId(), task.GetVchannel(), task.GetId())
+	return kc.MetaKv.Save(key, task.String())
+}
+
+func (kc *Catalog) DropReVShardTask(ctx context.Context, task *datapb.ReVShardTask) error {
+	key := buildReVshardTaskPath(task.GetCollectionId(), task.GetPartitionId(), task.GetVchannel(), task.GetId())
+	return kc.MetaKv.Remove(key)
+}
+
+func (kc *Catalog) ListReVShardTasks(ctx context.Context) ([]*datapb.ReVShardTask, error) {
+	infos := make([]*datapb.ReVShardTask, 0)
+	_, values, err := kc.MetaKv.LoadWithPrefix(ReVshardTaskPrefix)
+	if err != nil {
+		return nil, err
+	}
+	for _, value := range values {
+		info := &datapb.ReVShardTask{}
+		err = proto.Unmarshal([]byte(value), info)
+		if err != nil {
+			return nil, err
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
+}
+
+func (kc *Catalog) SaveVShardInfosAndReVShardTasks(ctx context.Context, vshards []*datapb.VShardInfo, task *datapb.ReVShardTask) error {
+	kvs := make(map[string]string)
+	// vshardInfos
+	for _, vshard := range vshards {
+		key := buildVshardInfoPath(vshard.GetCollectionId(), vshard.GetPartitionId(), vshard.GetVchannel(), vshard.VshardDesc.GetVshardNum(), vshard.VshardDesc.GetVshardId())
+		segBytes, err := proto.Marshal(vshard)
+		if err != nil {
+			return err
+		}
+		value := string(segBytes)
+		kvs[key] = value
+	}
+	// revshard task
+	key := buildReVshardTaskPath(task.GetCollectionId(), task.GetPartitionId(), task.GetVchannel(), task.GetId())
+	kvs[key] = task.String()
+	return kc.MetaKv.MultiSave(kvs)
+}

@@ -776,6 +776,49 @@ func (_c *DataCoordCatalog_DropPreImportTask_Call) RunAndReturn(run func(int64) 
 	return _c
 }
 
+// DropReVShardTask provides a mock function with given fields: ctx, task
+func (_m *DataCoordCatalog) DropReVShardTask(ctx context.Context, task *datapb.ReVShardTask) error {
+	ret := _m.Called(ctx, task)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.ReVShardTask) error); ok {
+		r0 = rf(ctx, task)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DataCoordCatalog_DropReVShardTask_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DropReVShardTask'
+type DataCoordCatalog_DropReVShardTask_Call struct {
+	*mock.Call
+}
+
+// DropReVShardTask is a helper method to define mock.On call
+//   - ctx context.Context
+//   - task *datapb.ReVShardTask
+func (_e *DataCoordCatalog_Expecter) DropReVShardTask(ctx interface{}, task interface{}) *DataCoordCatalog_DropReVShardTask_Call {
+	return &DataCoordCatalog_DropReVShardTask_Call{Call: _e.mock.On("DropReVShardTask", ctx, task)}
+}
+
+func (_c *DataCoordCatalog_DropReVShardTask_Call) Run(run func(ctx context.Context, task *datapb.ReVShardTask)) *DataCoordCatalog_DropReVShardTask_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.ReVShardTask))
+	})
+	return _c
+}
+
+func (_c *DataCoordCatalog_DropReVShardTask_Call) Return(_a0 error) *DataCoordCatalog_DropReVShardTask_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DataCoordCatalog_DropReVShardTask_Call) RunAndReturn(run func(context.Context, *datapb.ReVShardTask) error) *DataCoordCatalog_DropReVShardTask_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DropSegment provides a mock function with given fields: ctx, segment
 func (_m *DataCoordCatalog) DropSegment(ctx context.Context, segment *datapb.SegmentInfo) error {
 	ret := _m.Called(ctx, segment)
@@ -904,6 +947,49 @@ func (_c *DataCoordCatalog_DropStatsTask_Call) Return(_a0 error) *DataCoordCatal
 }
 
 func (_c *DataCoordCatalog_DropStatsTask_Call) RunAndReturn(run func(context.Context, int64) error) *DataCoordCatalog_DropStatsTask_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DropVShardInfo provides a mock function with given fields: ctx, vshardInfo
+func (_m *DataCoordCatalog) DropVShardInfo(ctx context.Context, vshardInfo *datapb.VShardInfo) error {
+	ret := _m.Called(ctx, vshardInfo)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.VShardInfo) error); ok {
+		r0 = rf(ctx, vshardInfo)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DataCoordCatalog_DropVShardInfo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DropVShardInfo'
+type DataCoordCatalog_DropVShardInfo_Call struct {
+	*mock.Call
+}
+
+// DropVShardInfo is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vshardInfo *datapb.VShardInfo
+func (_e *DataCoordCatalog_Expecter) DropVShardInfo(ctx interface{}, vshardInfo interface{}) *DataCoordCatalog_DropVShardInfo_Call {
+	return &DataCoordCatalog_DropVShardInfo_Call{Call: _e.mock.On("DropVShardInfo", ctx, vshardInfo)}
+}
+
+func (_c *DataCoordCatalog_DropVShardInfo_Call) Run(run func(ctx context.Context, vshardInfo *datapb.VShardInfo)) *DataCoordCatalog_DropVShardInfo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.VShardInfo))
+	})
+	return _c
+}
+
+func (_c *DataCoordCatalog_DropVShardInfo_Call) Return(_a0 error) *DataCoordCatalog_DropVShardInfo_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DataCoordCatalog_DropVShardInfo_Call) RunAndReturn(run func(context.Context, *datapb.VShardInfo) error) *DataCoordCatalog_DropVShardInfo_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1436,6 +1522,60 @@ func (_c *DataCoordCatalog_ListPreImportTasks_Call) RunAndReturn(run func() ([]*
 	return _c
 }
 
+// ListReVShardTasks provides a mock function with given fields: ctx
+func (_m *DataCoordCatalog) ListReVShardTasks(ctx context.Context) ([]*datapb.ReVShardTask, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []*datapb.ReVShardTask
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*datapb.ReVShardTask, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*datapb.ReVShardTask); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datapb.ReVShardTask)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoordCatalog_ListReVShardTasks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListReVShardTasks'
+type DataCoordCatalog_ListReVShardTasks_Call struct {
+	*mock.Call
+}
+
+// ListReVShardTasks is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *DataCoordCatalog_Expecter) ListReVShardTasks(ctx interface{}) *DataCoordCatalog_ListReVShardTasks_Call {
+	return &DataCoordCatalog_ListReVShardTasks_Call{Call: _e.mock.On("ListReVShardTasks", ctx)}
+}
+
+func (_c *DataCoordCatalog_ListReVShardTasks_Call) Run(run func(ctx context.Context)) *DataCoordCatalog_ListReVShardTasks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *DataCoordCatalog_ListReVShardTasks_Call) Return(_a0 []*datapb.ReVShardTask, _a1 error) *DataCoordCatalog_ListReVShardTasks_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *DataCoordCatalog_ListReVShardTasks_Call) RunAndReturn(run func(context.Context) ([]*datapb.ReVShardTask, error)) *DataCoordCatalog_ListReVShardTasks_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListSegmentIndexes provides a mock function with given fields: ctx
 func (_m *DataCoordCatalog) ListSegmentIndexes(ctx context.Context) ([]*model.SegmentIndex, error) {
 	ret := _m.Called(ctx)
@@ -1594,6 +1734,60 @@ func (_c *DataCoordCatalog_ListStatsTasks_Call) Return(_a0 []*indexpb.StatsTask,
 }
 
 func (_c *DataCoordCatalog_ListStatsTasks_Call) RunAndReturn(run func(context.Context) ([]*indexpb.StatsTask, error)) *DataCoordCatalog_ListStatsTasks_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVShardInfos provides a mock function with given fields: ctx
+func (_m *DataCoordCatalog) ListVShardInfos(ctx context.Context) ([]*datapb.VShardInfo, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []*datapb.VShardInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*datapb.VShardInfo, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*datapb.VShardInfo); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datapb.VShardInfo)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DataCoordCatalog_ListVShardInfos_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVShardInfos'
+type DataCoordCatalog_ListVShardInfos_Call struct {
+	*mock.Call
+}
+
+// ListVShardInfos is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *DataCoordCatalog_Expecter) ListVShardInfos(ctx interface{}) *DataCoordCatalog_ListVShardInfos_Call {
+	return &DataCoordCatalog_ListVShardInfos_Call{Call: _e.mock.On("ListVShardInfos", ctx)}
+}
+
+func (_c *DataCoordCatalog_ListVShardInfos_Call) Run(run func(ctx context.Context)) *DataCoordCatalog_ListVShardInfos_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *DataCoordCatalog_ListVShardInfos_Call) Return(_a0 []*datapb.VShardInfo, _a1 error) *DataCoordCatalog_ListVShardInfos_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *DataCoordCatalog_ListVShardInfos_Call) RunAndReturn(run func(context.Context) ([]*datapb.VShardInfo, error)) *DataCoordCatalog_ListVShardInfos_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2115,6 +2309,49 @@ func (_c *DataCoordCatalog_SavePreImportTask_Call) RunAndReturn(run func(*datapb
 	return _c
 }
 
+// SaveReVShardTask provides a mock function with given fields: ctx, task
+func (_m *DataCoordCatalog) SaveReVShardTask(ctx context.Context, task *datapb.ReVShardTask) error {
+	ret := _m.Called(ctx, task)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datapb.ReVShardTask) error); ok {
+		r0 = rf(ctx, task)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DataCoordCatalog_SaveReVShardTask_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveReVShardTask'
+type DataCoordCatalog_SaveReVShardTask_Call struct {
+	*mock.Call
+}
+
+// SaveReVShardTask is a helper method to define mock.On call
+//   - ctx context.Context
+//   - task *datapb.ReVShardTask
+func (_e *DataCoordCatalog_Expecter) SaveReVShardTask(ctx interface{}, task interface{}) *DataCoordCatalog_SaveReVShardTask_Call {
+	return &DataCoordCatalog_SaveReVShardTask_Call{Call: _e.mock.On("SaveReVShardTask", ctx, task)}
+}
+
+func (_c *DataCoordCatalog_SaveReVShardTask_Call) Run(run func(ctx context.Context, task *datapb.ReVShardTask)) *DataCoordCatalog_SaveReVShardTask_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datapb.ReVShardTask))
+	})
+	return _c
+}
+
+func (_c *DataCoordCatalog_SaveReVShardTask_Call) Return(_a0 error) *DataCoordCatalog_SaveReVShardTask_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DataCoordCatalog_SaveReVShardTask_Call) RunAndReturn(run func(context.Context, *datapb.ReVShardTask) error) *DataCoordCatalog_SaveReVShardTask_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SaveStatsTask provides a mock function with given fields: ctx, task
 func (_m *DataCoordCatalog) SaveStatsTask(ctx context.Context, task *indexpb.StatsTask) error {
 	ret := _m.Called(ctx, task)
@@ -2154,6 +2391,93 @@ func (_c *DataCoordCatalog_SaveStatsTask_Call) Return(_a0 error) *DataCoordCatal
 }
 
 func (_c *DataCoordCatalog_SaveStatsTask_Call) RunAndReturn(run func(context.Context, *indexpb.StatsTask) error) *DataCoordCatalog_SaveStatsTask_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveVShardInfos provides a mock function with given fields: ctx, vshardInfos
+func (_m *DataCoordCatalog) SaveVShardInfos(ctx context.Context, vshardInfos []*datapb.VShardInfo) error {
+	ret := _m.Called(ctx, vshardInfos)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*datapb.VShardInfo) error); ok {
+		r0 = rf(ctx, vshardInfos)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DataCoordCatalog_SaveVShardInfos_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveVShardInfos'
+type DataCoordCatalog_SaveVShardInfos_Call struct {
+	*mock.Call
+}
+
+// SaveVShardInfos is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vshardInfos []*datapb.VShardInfo
+func (_e *DataCoordCatalog_Expecter) SaveVShardInfos(ctx interface{}, vshardInfos interface{}) *DataCoordCatalog_SaveVShardInfos_Call {
+	return &DataCoordCatalog_SaveVShardInfos_Call{Call: _e.mock.On("SaveVShardInfos", ctx, vshardInfos)}
+}
+
+func (_c *DataCoordCatalog_SaveVShardInfos_Call) Run(run func(ctx context.Context, vshardInfos []*datapb.VShardInfo)) *DataCoordCatalog_SaveVShardInfos_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]*datapb.VShardInfo))
+	})
+	return _c
+}
+
+func (_c *DataCoordCatalog_SaveVShardInfos_Call) Return(_a0 error) *DataCoordCatalog_SaveVShardInfos_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DataCoordCatalog_SaveVShardInfos_Call) RunAndReturn(run func(context.Context, []*datapb.VShardInfo) error) *DataCoordCatalog_SaveVShardInfos_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveVShardInfosAndReVShardTasks provides a mock function with given fields: ctx, vshardInfos, meta
+func (_m *DataCoordCatalog) SaveVShardInfosAndReVShardTasks(ctx context.Context, vshardInfos []*datapb.VShardInfo, meta *datapb.ReVShardTask) error {
+	ret := _m.Called(ctx, vshardInfos, meta)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*datapb.VShardInfo, *datapb.ReVShardTask) error); ok {
+		r0 = rf(ctx, vshardInfos, meta)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveVShardInfosAndReVShardTasks'
+type DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call struct {
+	*mock.Call
+}
+
+// SaveVShardInfosAndReVShardTasks is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vshardInfos []*datapb.VShardInfo
+//   - meta *datapb.ReVShardTask
+func (_e *DataCoordCatalog_Expecter) SaveVShardInfosAndReVShardTasks(ctx interface{}, vshardInfos interface{}, meta interface{}) *DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call {
+	return &DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call{Call: _e.mock.On("SaveVShardInfosAndReVShardTasks", ctx, vshardInfos, meta)}
+}
+
+func (_c *DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call) Run(run func(ctx context.Context, vshardInfos []*datapb.VShardInfo, meta *datapb.ReVShardTask)) *DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]*datapb.VShardInfo), args[2].(*datapb.ReVShardTask))
+	})
+	return _c
+}
+
+func (_c *DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call) Return(_a0 error) *DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call) RunAndReturn(run func(context.Context, []*datapb.VShardInfo, *datapb.ReVShardTask) error) *DataCoordCatalog_SaveVShardInfosAndReVShardTasks_Call {
 	_c.Call.Return(run)
 	return _c
 }

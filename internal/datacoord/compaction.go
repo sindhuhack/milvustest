@@ -93,6 +93,7 @@ type compactionPlanHandler struct {
 	cluster          Cluster
 	analyzeScheduler *taskScheduler
 	handler          Handler
+	vshardManager    VshardManager
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
@@ -186,7 +187,7 @@ func (c *compactionPlanHandler) getCompactionTasksNumBySignalID(triggerID int64)
 	return cnt
 }
 
-func newCompactionPlanHandler(cluster Cluster, sessions session.DataNodeManager, cm ChannelManager, meta CompactionMeta, allocator allocator.Allocator, analyzeScheduler *taskScheduler, handler Handler,
+func newCompactionPlanHandler(cluster Cluster, sessions session.DataNodeManager, cm ChannelManager, meta CompactionMeta, allocator allocator.Allocator, analyzeScheduler *taskScheduler, handler Handler, vshardManager VshardManager,
 ) *compactionPlanHandler {
 	return &compactionPlanHandler{
 		queueTasks:       make(map[int64]CompactionTask),
@@ -200,6 +201,7 @@ func newCompactionPlanHandler(cluster Cluster, sessions session.DataNodeManager,
 		taskNumber:       atomic.NewInt32(0),
 		analyzeScheduler: analyzeScheduler,
 		handler:          handler,
+		vshardManager:    vshardManager,
 	}
 }
 
@@ -228,6 +230,9 @@ func (c *compactionPlanHandler) schedule() []CompactionTask {
 		case datapb.CompactionType_ClusteringCompaction:
 			clusterChannelExcludes.Insert(t.GetChannel())
 			clusterLabelExcludes.Insert(t.GetLabel())
+		case datapb.CompactionType_VShardSplitCompaction:
+			mixChannelExcludes.Insert(t.GetChannel())
+			mixLabelExcludes.Insert(t.GetLabel())
 		}
 	}
 	c.executingGuard.RUnlock()
@@ -250,6 +255,13 @@ func (c *compactionPlanHandler) schedule() []CompactionTask {
 			picked = append(picked, t)
 			l0ChannelExcludes.Insert(t.GetChannel())
 		case datapb.CompactionType_MixCompaction:
+			if l0ChannelExcludes.Contain(t.GetChannel()) {
+				continue
+			}
+			picked = append(picked, t)
+			mixChannelExcludes.Insert(t.GetChannel())
+			mixLabelExcludes.Insert(t.GetLabel())
+		case datapb.CompactionType_VShardSplitCompaction:
 			if l0ChannelExcludes.Contain(t.GetChannel()) {
 				continue
 			}
@@ -604,6 +616,8 @@ func (c *compactionPlanHandler) createCompactTask(t *datapb.CompactionTask) (Com
 		}
 	case datapb.CompactionType_ClusteringCompaction:
 		task = newClusteringCompactionTask(t, c.allocator, c.meta, c.sessions, c.handler, c.analyzeScheduler)
+	case datapb.CompactionType_VShardSplitCompaction:
+		task = newVshardSplitCompactionTask(t, c.allocator, c.meta, c.sessions, c.vshardManager)
 	default:
 		return nil, merr.WrapErrIllegalCompactionPlan("illegal compaction type")
 	}
@@ -695,6 +709,8 @@ func (c *compactionPlanHandler) pickAnyNode(nodeSlots map[int64]int64, task Comp
 		useSlot = paramtable.Get().DataCoordCfg.MixCompactionSlotUsage.GetAsInt64()
 	case datapb.CompactionType_Level0DeleteCompaction:
 		useSlot = paramtable.Get().DataCoordCfg.L0DeleteCompactionSlotUsage.GetAsInt64()
+	case datapb.CompactionType_VShardSplitCompaction:
+		useSlot = paramtable.Get().DataCoordCfg.ClusteringCompactionSlotUsage.GetAsInt64()
 	}
 
 	for id, slots := range nodeSlots {
