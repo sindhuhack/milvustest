@@ -124,7 +124,7 @@ message SearchRequest {
   common.ConsistencyLevel consistency_level = 22;
   int64 group_by_field_id = 23;
   int64 group_size = 24;
-  int64 FieldID=25;
+  int64 FieldID = 25;
 }
 
 message SubSearchResults {

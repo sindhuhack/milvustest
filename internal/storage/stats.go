@@ -462,9 +462,9 @@ func (m *BM25Stats) BuildIDF(tf []byte) (idf []byte) {
 	idf = make([]byte, len(tf))
 	for idx := 0; idx < dim; idx++ {
 		key := typeutil.SparseFloatRowIndexAt(tf, idx)
-		tf := typeutil.SparseFloatRowValueAt(tf, idx)
+		value := typeutil.SparseFloatRowValueAt(tf, idx)
 		nq := m.rowsWithToken[key]
-		typeutil.SparseFloatRowSetAt(idf, idx, key, tf*float32(math.Log(1+(float64(m.numRow)-float64(nq)+0.5)/(float64(nq)+0.5))))
+		typeutil.SparseFloatRowSetAt(idf, idx, key, value*float32(math.Log(1+(float64(m.numRow)-float64(nq)+0.5)/(float64(nq)+0.5))))
 	}
 	return
 }
