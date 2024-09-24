@@ -24,6 +24,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/Array.h"
@@ -60,13 +61,27 @@ constexpr size_t DEFAULT_MMAP_VRCOL_BLOCK_SIZE = 256;
 
 class ColumnBase {
  public:
+    virtual size_t
+    ByteSize() const = 0;
+
+    virtual const char*
+    MmappedData() const = 0;
+
+    virtual void
+    AppendBatch(const FieldDataPtr data) = 0;
+
+    virtual const char*
+    Data(int chunk_id = 0) const = 0;
+};
+class SingleChunkColumnBase : public ColumnBase {
+ public:
     enum MappingType {
         MAP_WITH_ANONYMOUS = 0,
         MAP_WITH_FILE = 1,
         MAP_WITH_MANAGER = 2,
     };
     // memory mode ctor
-    ColumnBase(size_t reserve, const FieldMeta& field_meta)
+    SingleChunkColumnBase(size_t reserve, const FieldMeta& field_meta)
         : mapping_type_(MappingType::MAP_WITH_ANONYMOUS) {
         auto data_type = field_meta.get_data_type();
         SetPaddingSize(data_type);
@@ -104,12 +119,12 @@ class ColumnBase {
     }
 
     // use mmap manager ctor, used in growing segment fixed data type
-    ColumnBase(size_t reserve,
-               int dim,
-               const DataType& data_type,
-               storage::MmapChunkManagerPtr mcm,
-               storage::MmapChunkDescriptorPtr descriptor,
-               bool nullable)
+    SingleChunkColumnBase(size_t reserve,
+                          int dim,
+                          const DataType& data_type,
+                          storage::MmapChunkManagerPtr mcm,
+                          storage::MmapChunkDescriptorPtr descriptor,
+                          bool nullable)
         : mcm_(mcm),
           mmap_descriptor_(descriptor),
           type_size_(GetDataTypeSize(data_type, dim)),
@@ -136,7 +151,9 @@ class ColumnBase {
     // mmap mode ctor
     // User must call Seal to build the view for variable length column.
     // !!! The incoming file must be write padings at the end of the file.
-    ColumnBase(const File& file, size_t size, const FieldMeta& field_meta)
+    SingleChunkColumnBase(const File& file,
+                          size_t size,
+                          const FieldMeta& field_meta)
         : mapping_type_(MappingType::MAP_WITH_FILE) {
         auto data_type = field_meta.get_data_type();
         SetPaddingSize(data_type);
@@ -171,12 +188,11 @@ class ColumnBase {
 
     // mmap mode ctor
     // User must call Seal to build the view for variable length column.
-    // !!! The incoming file must be write padings at the end of the file.
-    ColumnBase(const File& file,
-               size_t size,
-               int dim,
-               const DataType& data_type,
-               bool nullable)
+    SingleChunkColumnBase(const File& file,
+                          size_t size,
+                          int dim,
+                          const DataType& data_type,
+                          bool nullable)
         : data_size_(size),
           nullable_(nullable),
           mapping_type_(MappingType::MAP_WITH_FILE) {
@@ -208,7 +224,7 @@ class ColumnBase {
         UpdateMetricWhenMmap(size);
     }
 
-    virtual ~ColumnBase() {
+    virtual ~SingleChunkColumnBase() {
         if (data_ != nullptr) {
             if (mapping_type_ != MappingType::MAP_WITH_MANAGER) {
                 size_t mapped_size = data_cap_size_ + padding_;
@@ -225,7 +241,7 @@ class ColumnBase {
         }
     }
 
-    ColumnBase(ColumnBase&& column) noexcept
+    SingleChunkColumnBase(SingleChunkColumnBase&& column) noexcept
         : data_(column.data_),
           nullable_(column.nullable_),
           valid_data_(std::move(column.valid_data_)),
@@ -243,13 +259,13 @@ class ColumnBase {
 
     // Data() points at an addr that contains the elements
     virtual const char*
-    Data() const {
+    Data(int chunk_id = 0) const override {
         return data_;
     }
 
     // MmappedData() returns the mmaped address
     const char*
-    MmappedData() const {
+    MmappedData() const override {
         return data_;
     }
 
@@ -484,40 +500,44 @@ class ColumnBase {
     storage::MmapChunkManagerPtr mcm_ = nullptr;
 };
 
-class Column : public ColumnBase {
+class SingleChunkColumn : public SingleChunkColumnBase {
  public:
     // memory mode ctor
-    Column(size_t cap, const FieldMeta& field_meta)
-        : ColumnBase(cap, field_meta) {
+    SingleChunkColumn(size_t cap, const FieldMeta& field_meta)
+        : SingleChunkColumnBase(cap, field_meta) {
     }
 
     // mmap mode ctor
-    Column(const File& file, size_t size, const FieldMeta& field_meta)
-        : ColumnBase(file, size, field_meta) {
+    SingleChunkColumn(const File& file,
+                      size_t size,
+                      const FieldMeta& field_meta)
+        : SingleChunkColumnBase(file, size, field_meta) {
     }
 
     // mmap mode ctor
-    Column(const File& file,
-           size_t size,
-           int dim,
-           DataType data_type,
-           bool nullable)
-        : ColumnBase(file, size, dim, data_type, nullable) {
+    SingleChunkColumn(const File& file,
+                      size_t size,
+                      int dim,
+                      DataType data_type,
+                      bool nullable)
+        : SingleChunkColumnBase(file, size, dim, data_type, nullable) {
     }
 
-    Column(size_t reserve,
-           int dim,
-           const DataType& data_type,
-           storage::MmapChunkManagerPtr mcm,
-           storage::MmapChunkDescriptorPtr descriptor,
-           bool nullable)
-        : ColumnBase(reserve, dim, data_type, mcm, descriptor, nullable) {
+    SingleChunkColumn(size_t reserve,
+                      int dim,
+                      const DataType& data_type,
+                      storage::MmapChunkManagerPtr mcm,
+                      storage::MmapChunkDescriptorPtr descriptor,
+                      bool nullable)
+        : SingleChunkColumnBase(
+              reserve, dim, data_type, mcm, descriptor, nullable) {
     }
 
-    Column(Column&& column) noexcept : ColumnBase(std::move(column)) {
+    SingleChunkColumn(SingleChunkColumn&& column) noexcept
+        : SingleChunkColumnBase(std::move(column)) {
     }
 
-    ~Column() override = default;
+    ~SingleChunkColumn() override = default;
 
     SpanBase
     Span() const override {
@@ -527,43 +547,45 @@ class Column : public ColumnBase {
 };
 
 // when mmap is used, size_, data_ and num_rows_ of ColumnBase are used.
-class SparseFloatColumn : public ColumnBase {
+class SingleChunkSparseFloatColumn : public SingleChunkColumnBase {
  public:
     // memory mode ctor
-    SparseFloatColumn(const FieldMeta& field_meta) : ColumnBase(0, field_meta) {
+    SingleChunkSparseFloatColumn(const FieldMeta& field_meta)
+        : SingleChunkColumnBase(0, field_meta) {
     }
     // mmap mode ctor
-    SparseFloatColumn(const File& file,
-                      size_t size,
-                      const FieldMeta& field_meta)
-        : ColumnBase(file, size, field_meta) {
+    SingleChunkSparseFloatColumn(const File& file,
+                                 size_t size,
+                                 const FieldMeta& field_meta)
+        : SingleChunkColumnBase(file, size, field_meta) {
     }
     // mmap mode ctor
-    SparseFloatColumn(const File& file,
-                      size_t size,
-                      int dim,
-                      const DataType& data_type)
-        : ColumnBase(file, size, dim, data_type, false) {
+    SingleChunkSparseFloatColumn(const File& file,
+                                 size_t size,
+                                 int dim,
+                                 const DataType& data_type)
+        : SingleChunkColumnBase(file, size, dim, data_type, false) {
     }
     // mmap with mmap manager
-    SparseFloatColumn(size_t reserve,
-                      int dim,
-                      const DataType& data_type,
-                      storage::MmapChunkManagerPtr mcm,
-                      storage::MmapChunkDescriptorPtr descriptor)
-        : ColumnBase(reserve, dim, data_type, mcm, descriptor, false) {
+    SingleChunkSparseFloatColumn(size_t reserve,
+                                 int dim,
+                                 const DataType& data_type,
+                                 storage::MmapChunkManagerPtr mcm,
+                                 storage::MmapChunkDescriptorPtr descriptor)
+        : SingleChunkColumnBase(
+              reserve, dim, data_type, mcm, descriptor, false) {
     }
 
-    SparseFloatColumn(SparseFloatColumn&& column) noexcept
-        : ColumnBase(std::move(column)),
+    SingleChunkSparseFloatColumn(SingleChunkSparseFloatColumn&& column) noexcept
+        : SingleChunkColumnBase(std::move(column)),
           dim_(column.dim_),
           vec_(std::move(column.vec_)) {
     }
 
-    ~SparseFloatColumn() override = default;
+    ~SingleChunkSparseFloatColumn() override = default;
 
     const char*
-    Data() const override {
+    Data(int chunk_id = 0) const override {
         return static_cast<const char*>(static_cast<const void*>(vec_.data()));
     }
 
@@ -643,40 +665,45 @@ class SparseFloatColumn : public ColumnBase {
 };
 
 template <typename T>
-class VariableColumn : public ColumnBase {
+class SingleChunkVariableColumn : public SingleChunkColumnBase {
  public:
     using ViewType =
         std::conditional_t<std::is_same_v<T, std::string>, std::string_view, T>;
 
     // memory mode ctor
-    VariableColumn(size_t cap, const FieldMeta& field_meta, size_t block_size)
-        : ColumnBase(cap, field_meta), block_size_(block_size) {
+    SingleChunkVariableColumn(size_t cap,
+                              const FieldMeta& field_meta,
+                              size_t block_size)
+        : SingleChunkColumnBase(cap, field_meta), block_size_(block_size) {
     }
 
     // mmap mode ctor
-    VariableColumn(const File& file,
-                   size_t size,
-                   const FieldMeta& field_meta,
-                   size_t block_size)
-        : ColumnBase(file, size, field_meta), block_size_(block_size) {
+    SingleChunkVariableColumn(const File& file,
+                              size_t size,
+                              const FieldMeta& field_meta,
+                              size_t block_size)
+        : SingleChunkColumnBase(file, size, field_meta),
+          block_size_(block_size) {
     }
     // mmap with mmap manager
-    VariableColumn(size_t reserve,
-                   int dim,
-                   const DataType& data_type,
-                   storage::MmapChunkManagerPtr mcm,
-                   storage::MmapChunkDescriptorPtr descriptor,
-                   bool nullable,
-                   size_t block_size)
-        : ColumnBase(reserve, dim, data_type, mcm, descriptor, nullable),
+    SingleChunkVariableColumn(size_t reserve,
+                              int dim,
+                              const DataType& data_type,
+                              storage::MmapChunkManagerPtr mcm,
+                              storage::MmapChunkDescriptorPtr descriptor,
+                              bool nullable,
+                              size_t block_size)
+        : SingleChunkColumnBase(
+              reserve, dim, data_type, mcm, descriptor, nullable),
           block_size_(block_size) {
     }
 
-    VariableColumn(VariableColumn&& column) noexcept
-        : ColumnBase(std::move(column)), indices_(std::move(column.indices_)) {
+    SingleChunkVariableColumn(SingleChunkVariableColumn&& column) noexcept
+        : SingleChunkColumnBase(std::move(column)),
+          indices_(std::move(column.indices_)) {
     }
 
-    ~VariableColumn() override = default;
+    ~SingleChunkVariableColumn() override = default;
 
     SpanBase
     Span() const override {
@@ -726,7 +753,9 @@ class VariableColumn : public ColumnBase {
             pos += sizeof(uint32_t) + size;
         }
 
-        return BufferView{pos, data_size_ - (pos - data_)};
+        BufferView res;
+        res.data_ = std::pair<char*, size_t>{pos, 0};
+        return res;
     }
 
     ViewType
@@ -830,37 +859,40 @@ class VariableColumn : public ColumnBase {
     std::vector<uint64_t> indices_{};
 };
 
-class ArrayColumn : public ColumnBase {
+class SingleChunkArrayColumn : public SingleChunkColumnBase {
  public:
     // memory mode ctor
-    ArrayColumn(size_t num_rows, const FieldMeta& field_meta)
-        : ColumnBase(num_rows, field_meta),
+    SingleChunkArrayColumn(size_t num_rows, const FieldMeta& field_meta)
+        : SingleChunkColumnBase(num_rows, field_meta),
           element_type_(field_meta.get_element_type()) {
     }
 
     // mmap mode ctor
-    ArrayColumn(const File& file, size_t size, const FieldMeta& field_meta)
-        : ColumnBase(file, size, field_meta),
+    SingleChunkArrayColumn(const File& file,
+                           size_t size,
+                           const FieldMeta& field_meta)
+        : SingleChunkColumnBase(file, size, field_meta),
           element_type_(field_meta.get_element_type()) {
     }
 
-    ArrayColumn(size_t reserve,
-                int dim,
-                const DataType& data_type,
-                storage::MmapChunkManagerPtr mcm,
-                storage::MmapChunkDescriptorPtr descriptor,
-                bool nullable)
-        : ColumnBase(reserve, dim, data_type, mcm, descriptor, nullable) {
+    SingleChunkArrayColumn(size_t reserve,
+                           int dim,
+                           const DataType& data_type,
+                           storage::MmapChunkManagerPtr mcm,
+                           storage::MmapChunkDescriptorPtr descriptor,
+                           bool nullable)
+        : SingleChunkColumnBase(
+              reserve, dim, data_type, mcm, descriptor, nullable) {
     }
 
-    ArrayColumn(ArrayColumn&& column) noexcept
-        : ColumnBase(std::move(column)),
+    SingleChunkArrayColumn(SingleChunkArrayColumn&& column) noexcept
+        : SingleChunkColumnBase(std::move(column)),
           indices_(std::move(column.indices_)),
           views_(std::move(column.views_)),
           element_type_(column.element_type_) {
     }
 
-    ~ArrayColumn() override = default;
+    ~SingleChunkArrayColumn() override = default;
 
     SpanBase
     Span() const override {
@@ -890,12 +922,13 @@ class ArrayColumn : public ColumnBase {
         indices_.emplace_back(data_size_);
         element_indices_.emplace_back(array.get_offsets());
         if (nullable_) {
-            return ColumnBase::Append(static_cast<const char*>(array.data()),
-                                      valid_data,
-                                      array.byte_size());
+            return SingleChunkColumnBase::Append(
+                static_cast<const char*>(array.data()),
+                valid_data,
+                array.byte_size());
         }
-        ColumnBase::Append(static_cast<const char*>(array.data()),
-                           array.byte_size());
+        SingleChunkColumnBase::Append(static_cast<const char*>(array.data()),
+                                      array.byte_size());
     }
 
     void
