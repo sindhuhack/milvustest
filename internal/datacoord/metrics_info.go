@@ -63,10 +63,10 @@ func (s *Server) getCollectionMetrics(ctx context.Context) *metricsinfo.DataCoor
 			Timestamp:    0,
 		})
 		if err := merr.CheckRPCCall(indexInfo, err); err != nil {
-			log.Ctx(ctx).Warn("failed to describe index, ignore to report index metrics",
-				zap.Int64("collection", collectionID),
-				zap.Error(err),
-			)
+			//log.Ctx(ctx).Warn("failed to describe index, ignore to report index metrics",
+			//	zap.Int64("collection", collectionID),
+			//	zap.Error(err),
+			//)
 			continue
 		}
 		for _, info := range indexInfo.GetIndexInfos() {

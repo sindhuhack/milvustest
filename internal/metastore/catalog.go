@@ -174,6 +174,16 @@ type DataCoordCatalog interface {
 	ListStatsTasks(ctx context.Context) ([]*indexpb.StatsTask, error)
 	SaveStatsTask(ctx context.Context, task *indexpb.StatsTask) error
 	DropStatsTask(ctx context.Context, taskID typeutil.UniqueID) error
+
+	SaveVShardInfos(ctx context.Context, vshardInfos []*datapb.VShardInfo) error
+	DropVShardInfo(ctx context.Context, vshardInfo *datapb.VShardInfo) error
+	ListVShardInfos(ctx context.Context) ([]*datapb.VShardInfo, error)
+
+	SaveReVShardTask(ctx context.Context, task *datapb.ReVShardTask) error
+	DropReVShardTask(ctx context.Context, task *datapb.ReVShardTask) error
+	ListReVShardTasks(ctx context.Context) ([]*datapb.ReVShardTask, error)
+
+	SaveVShardInfosAndReVShardTasks(ctx context.Context, vshardInfos []*datapb.VShardInfo, meta *datapb.ReVShardTask) error
 }
 
 type QueryCoordCatalog interface {

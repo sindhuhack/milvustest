@@ -277,6 +277,8 @@ type commonConfig struct {
 	ReadOnlyPrivileges                  ParamItem `refreshable:"false"`
 	ReadWritePrivileges                 ParamItem `refreshable:"false"`
 	AdminPrivileges                     ParamItem `refreshable:"false"`
+
+	VShardEnable ParamItem `refreshable:"true"`
 }
 
 func (p *commonConfig) init(base *BaseTable) {
@@ -914,6 +916,16 @@ This helps Milvus-CDC synchronize incremental data`,
 		Doc:     `use to override the default value of admin privileges,  example: "PrivilegeCreateOwnership,PrivilegeDropOwnership"`,
 	}
 	p.AdminPrivileges.Init(base.mgr)
+
+	p.VShardEnable = ParamItem{
+		Key:          "common.vshard.enable",
+		Version:      "2.5.0",
+		DefaultValue: "true",
+		PanicIfEmpty: true,
+		Doc:          "Enable vshard",
+		Export:       true,
+	}
+	p.VShardEnable.Init(base.mgr)
 }
 
 type gpuConfig struct {
@@ -3298,6 +3310,8 @@ type dataCoordConfig struct {
 
 	EnableStatsTask   ParamItem `refreshable:"true"`
 	TaskCheckInterval ParamItem `refreshable:"true"`
+
+	VshardSplitThreshold ParamItem `refreshable:"true"`
 }
 
 func (p *dataCoordConfig) init(base *BaseTable) {
@@ -4121,6 +4135,16 @@ During compaction, the size of segment # of rows is able to exceed segment max #
 		Export:       false,
 	}
 	p.TaskCheckInterval.Init(base.mgr)
+
+	p.VshardSplitThreshold = ParamItem{
+		Key:          "dataCoord.vshard.splitThreshold",
+		Version:      "2.5.0",
+		Doc:          "splitThreshold for a vshard.",
+		DefaultValue: "100gb",
+		PanicIfEmpty: false,
+		Export:       true,
+	}
+	p.VshardSplitThreshold.Init(base.mgr)
 }
 
 // /////////////////////////////////////////////////////////////////////////////
