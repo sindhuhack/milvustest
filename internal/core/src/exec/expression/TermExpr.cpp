@@ -178,7 +178,7 @@ PhyTermFilterExpr::InitPkCacheOffset() {
         segment_->search_ids(*id_array, query_timestamp_);
     cached_bits_.resize(active_count_, false);
     for (const auto& offset : seg_offsets) {
-        auto _offset = (int64_t)offset.get();
+        auto _offset = static_cast<int64_t>(offset.get());
         cached_bits_[_offset] = true;
     }
     cached_bits_inited_ = true;
@@ -520,7 +520,10 @@ PhyTermFilterExpr::ExecVisitorImplForIndex<bool>() {
     auto execute_sub_batch = [](Index* index_ptr,
                                 const std::vector<uint8_t>& vals) {
         TermIndexFunc<bool> func;
-        return std::move(func(index_ptr, vals.size(), (bool*)vals.data()));
+        return std::move(func(index_ptr, vals.size(), 
+                      const_cast<bool*>(static_cast<const bool*>(
+                          static_cast<const void*>(vals.data())
+                      ))));
     };
     auto res = ProcessIndexChunks<bool>(execute_sub_batch, vals);
     return std::make_shared<ColumnVector>(std::move(res));
